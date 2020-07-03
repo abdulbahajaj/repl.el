@@ -59,18 +59,17 @@
 (cl-defun replel-define (&rest conf-list)
   "Define a replel"
   (let* ((conf-hashtable (apply 'replel--ht conf-list))
-	 (replel-name (gethash :name conf-hashtable))
+	 (image-name (gethash :image conf-hashtable))
 	 (diff (-difference (replel--ht-get-keys conf-hashtable) replel--allowed-attrs)))
     (if diff
 	(message
 	 (format
 	  "in the definition of %s you have used one or more undefined attributes: %s"
 	  replel-name diff))
-      (puthash (gethash :name conf-hashtable) conf-hashtable replel--defined-conf))))
+      (puthash image-name conf-hashtable replel--defined-conf))))
 
 
 ;; Helpers
-
 (cl-defun replel--cmd-run (cmd)
   (let ((default-dir default-directory))
     (cd "/")
@@ -124,7 +123,7 @@
 	   (when filter (format " --filter %s" filter))
 	   (when dformat (format " --format=\"%s\"" dformat)))))
 
-(cl-defun replel--container-running-ls ()
+(cl-defun replel--container-ls ()
   (--map
    (let ((container-desc (s-split ":" it)))
      (replel--ht :name (car container-desc) :image (cadr container-desc)))
@@ -136,26 +135,41 @@
 (cl-defun replel--get-replel-name-from-container-name (container-name)
   (s-replace-regexp "-.*" "" (s-replace replel--prefix "" container-name)))
 
+(cl-defun replel--current-container-name ()
+  (let ((current-path default-directory))
+    (s-replace-regexp ":.*" "" (s-replace-regexp "^\/docker:" "" current-path))))
+
+(cl-defun replel--container-get-desc (container-name)
+  (car
+    (let ((current-container-name container-name))
+      (--drop-while (let ((container-name (gethash :name it)))
+		      (if (string= current-container-name container-name) nil t))
+		    (replel--container-ls)))))
+
+(cl-defun replel--container-image-name (container-name)
+  (gethash :image
+	   (let ((container-desc (replel--container-get-desc container-name)))
+	     (if container-desc container-desc (make-hash-table)))))
 
 
 ;; Replel API
 
 (cl-defun replel--gen-name () (random 9999))
 
-(cl-defun replel-resume (container-name)
+(cl-defun replel-resume (container-name) 
   (replel--container-resume container-name)
-  (let* ((default-dir default-directory)
-	 (replel-name (replel--get-replel-name-from-container-name container-name))
-	 (replel-conf (replel--get-conf replel-name))
-	 (start-at (gethash :open replel-conf)))
-    (replel--container-open :container-name container-name :path start-at)))
+  (let* ((image-name (replel--container-image-name container-name))
+	 (replel-conf (replel--get-conf image-name))
+	 (open (gethash :open replel-conf)))
+    (replel--container-open :container-name container-name :path open)))
 
 (cl-defun replel-start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
   (let ((replel-conf (replel--get-conf image-name))
 	(container-name (replel--gen-name)))
     (cd "/")
-    (replel--container-run :image-name image-name :container-name container-name)
+    (replel--container-run :image-name image-name
+			   :container-name container-name)
     (replel--container-open :container-name container-name
 			    :path (gethash :open replel-conf))))
 
@@ -164,14 +178,16 @@
   (interactive)
   (replel-resume
    (ivy-read "Select container "
-	     (--map (gethash :name it) (replel--container-running-ls)))))
+	     (--map (gethash :name it)
+		    (replel--container-ls)))))
 
 (cl-defun replel-start-select ()
   "Select a replel to run"
   (interactive)
   (replel-start
    (ivy-read "Select image "
-	     (--map (gethash :repository it) (replel--container-image-ls)))))
+	     (--map (gethash :repository it)
+		    (replel--container-image-ls)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
