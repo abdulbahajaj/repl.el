@@ -17,24 +17,10 @@
 
 (defconst replel--prefix "replel-")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Replel confs
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar replel--defined-conf (make-hash-table :test 'equal)
-  "Contains a list of all defined repls")
+;; Hashtable functionality
 
-(defconst replel--allowed-attrs '(:name :base :run :start-at))
-
-(cl-defun replel--init-hashtable (hashtable &rest vals)
-  "Given a hash table"
-  (let ((vals (car vals)))
-    (while vals
-      (puthash (car vals) (cadr vals) hashtable)
-      (setq vals (cddr vals))))
-  hashtable)
-
-(cl-defun replel--get-hashtable-keys (hashtable)
+(cl-defun replel--ht-get-keys (hashtable)
   "Given a hash table, return a list of all keys"
   (let ((all-keys '()))
     (maphash
@@ -42,19 +28,39 @@
      hashtable)
     all-keys))
 
+(cl-defun replel--ht-set (ht &rest vals)
+  (while vals
+    (puthash (car vals) (cadr vals) ht)
+    (setq vals (cddr vals)))
+  ht)
+
+(cl-defun replel--ht (&rest vals)
+  (apply 'replel--ht-set (cons (make-hash-table) vals)))
+
+
+
+;; Rules
+
+(defvar replel--defined-conf (make-hash-table :test 'equal)
+  "Contains a list of all defined repls")
+
+(defconst replel--allowed-attrs '(:image :run :open))
+
 (cl-defun replel--get-conf (replel-name)
   (or (gethash replel-name replel--defined-conf)
-      (replel--init-hashtable (make-hash-table) 
-			      `(:base ,replel-name
-				      :name ,replel-name
-				      :run nil
-				      :start-at "/"))))
+      (replel--ht
+       :image replel-name
+       :run nil
+       :open "/")))
+
+(cl-defun replel--names-list ()
+  (replel--ht-get-keys replel--defined-conf))
 
 (cl-defun replel-define (&rest conf-list)
   "Define a replel"
-  (let* ((conf-hashtable (replel--init-hashtable (make-hash-table) conf-list))
+  (let* ((conf-hashtable (apply 'replel--ht conf-list))
 	 (replel-name (gethash :name conf-hashtable))
-	 (diff (-difference (replel--get-hashtable-keys conf-hashtable) replel--allowed-attrs)))
+	 (diff (-difference (replel--ht-get-keys conf-hashtable) replel--allowed-attrs)))
     (if diff
 	(message
 	 (format
@@ -62,25 +68,8 @@
 	  replel-name diff))
       (puthash (gethash :name conf-hashtable) conf-hashtable replel--defined-conf))))
 
-(cl-defun replel--names-list ()
-  (replel--get-hashtable-keys replel--defined-conf))
 
-(cl-defun replel-list ()
-  (let ((all-replels '()))
-    (maphash
-     (lambda (key val) (setq all-replels (cons val all-replels)))
-     replel--defined-conf)
-    all-replels))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Run commands
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(cl-defun replel--cmd-run (cmd)
-  (message cmd)
-  (shell-command-to-string
-   ;; TODO Maybe support windows? probably not.
-   (format "/bin/sh -c \"%s\"" cmd)))
+;; Helpers
 
 (cl-defun replel--cmd-run (cmd)
   (let ((default-dir default-directory))
@@ -96,19 +85,16 @@
   "Or one or more commands"
   (s-join " || " cmds))
 
+
+;; Interacting with container runtime
+
 (cl-defun replel--container-run (&key image-name container-name)
   "Run a docker container with image `image-name` and container `container-name`"
   (replel--cmd-run (format "docker run -t -d --name %s %s" container-name image-name)))
 
-(cl-defun replel--container-image-ls ()
-  "Returns a string list of image names"
-  (butlast
-   (s-split "\n"
-	    (replel--cmd-run "docker image ls --format='{{.Repository}}'"))))
-
-(cl-defun replel--open-container-at (&key container-name path)
+(cl-defun replel--container-open (&key container-name path)
   "Goes to the container at a specific file or dir"
-  (find-file (format "/docker:%s:%s" container-name path)))
+  (find-file (format "/docker:%s:%s" container-name (or path "/"))))
 
 (cl-defun replel--container-resume (container-name)
   "Resumes a stopped/paused container"
@@ -119,6 +105,19 @@
      '("docker container start %s"
        "docker container unpause %s")))))
 
+
+
+;; Retrieving info
+
+(cl-defun replel--container-image-ls ()
+  "Returns a string list of image names"
+  (--map
+   (let ((image-desc (s-split ":" it)))
+     (replel--ht :repository (car image-desc)))
+   (butlast
+    (s-split "\n"
+	     (replel--cmd-run "docker image ls --format='{{.Repository}}'")))))
+
 (cl-defun replel--container-ps (&optional &key filter dformat)
   (replel--cmd-run
    (concat "docker ps --all"
@@ -126,71 +125,53 @@
 	   (when dformat (format " --format=\"%s\"" dformat)))))
 
 (cl-defun replel--container-running-ls ()
-  (butlast
-   (s-split
-    "\n"
-    (replel--container-ps :filter "name=\'replel-*\'"
-			  :dformat "{{.Names}}"))))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; Replel internals
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (--map
+   (let ((container-desc (s-split ":" it)))
+     (replel--ht :name (car container-desc) :image (cadr container-desc)))
+   (butlast
+    (s-split
+     "\n"
+     (replel--container-ps :dformat "{{.Names}}:{{.Image}}")))))
 
 (cl-defun replel--get-replel-name-from-container-name (container-name)
   (s-replace-regexp "-.*" "" (s-replace replel--prefix "" container-name)))
 
-(cl-defun replel--remove-name-prefix (replel-name)
-  (s-replace-regexp
-   (format "^%s" replel--prefix) "" replel-name))
 
-(cl-defun replel--gen-container-name (replel-name)
-  (format "%s%s-%s-%s"
-	  replel--prefix 
-	  replel-name
-	  (s-replace ":" "." (s-replace " " "-" (current-time-string)))
-	  (random 99999)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;; External API
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Replel API
+
+(cl-defun replel--gen-name () (random 9999))
 
 (cl-defun replel-resume (container-name)
   (replel--container-resume container-name)
   (let* ((default-dir default-directory)
 	 (replel-name (replel--get-replel-name-from-container-name container-name))
 	 (replel-conf (replel--get-conf replel-name))
-	 (start-at (gethash :start-at replel-conf)))
-    (replel--open-container-at :container-name container-name :path start-at)))
+	 (start-at (gethash :open replel-conf)))
+    (replel--container-open :container-name container-name :path start-at)))
+
+(cl-defun replel-start (image-name)
+  "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
+  (let ((replel-conf (replel--get-conf image-name))
+	(container-name (replel--gen-name)))
+    (cd "/")
+    (replel--container-run :image-name image-name :container-name container-name)
+    (replel--container-open :container-name container-name
+			    :path (gethash :open replel-conf))))
 
 (cl-defun replel-resume-select ()
   "Select a replel to run"
   (interactive)
   (replel-resume
-   (concat replel--prefix
-	   (ivy-read "Select image "
-		     (mapcar
-		      (lambda (replel-name) (replel--remove-name-prefix replel-name))
-		      (replel--container-running-ls))))))
+   (ivy-read "Select container "
+	     (--map (gethash :name it) (replel--container-running-ls)))))
 
 (cl-defun replel-start-select ()
   "Select a replel to run"
   (interactive)
   (replel-start
    (ivy-read "Select image "
-	     (-union
-	      (replel--names-list)
-	      (replel--container-image-ls)))))
-
-(cl-defun replel-start (replel-name)
-  "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
-  (let ((replel-conf (replel--get-conf replel-name))
-	(container-name (replel--gen-container-name replel-name)))
-    (cd "/")
-    (replel--container-run :image-name (gethash :base replel-conf)
-			   :container-name container-name)
-    (replel--open-container-at :container-name container-name
-			       :path (gethash :start-at replel-conf))))
+	     (--map (gethash :repository it) (replel--container-image-ls)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -199,10 +180,9 @@
 
 ;; Defining replels
 (replel-define
- :base "ubuntu"
- :name "test"
+ :image "ubuntu"
  :run "make"
- :start-at "/test.txt")
+ :open "/test.txt")
 
 (provide 'replel)
 ;;; repel ends here
