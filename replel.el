@@ -15,7 +15,6 @@
 
 (require 'cl-lib)
 
-(defconst replel--prefix "replel-")
 
 
 ;; Hashtable functionality
@@ -131,9 +130,6 @@
     (s-split
      "\n"
      (replel--container-ps :dformat "{{.Names}}:{{.Image}}")))))
-
-(cl-defun replel--get-replel-name-from-container-name (container-name)
-  (s-replace-regexp "-.*" "" (s-replace replel--prefix "" container-name)))
 
 (cl-defun replel--current-container-name ()
   (let ((current-path default-directory))
