@@ -224,11 +224,9 @@
 
 ;; main view
 (cl-defun replel--overview-draw-container (cont)
-  (print cont)
   (let* ((start-pos (point))
 	 (container-name (gethash :name cont))
 	 (end-pos (+ start-pos (length container-name))))
-    (message (format "%s - %s" start-pos end-pos))
     (insert (format "%s\n"  container-name))
     (let ((map (make-sparse-keymap)))
       (define-key map (kbd "<return>")
@@ -240,8 +238,6 @@
     ))
 
 (cl-defun replel--overview-draw-section (date conts)
-  (print date)
-  (print conts)
   (let* ((start-pos (point))
 	 (end-pos (+ start-pos (length date))))
     (insert (format "%s\n" date))
@@ -275,12 +271,7 @@
 	     acc)
 	   (make-hash-table :test 'equal) (replel--container-ls)))
 	 (available-times (replel--ht-get-keys grouped-by-time)))
-    (print "----------------------------------------")
-    (print grouped-by-time)
-    (print available-times)
-    (print "----------------------------------------")
     (erase-buffer)
-    (print available-times)
     (--map (replel--overview-draw-section it (gethash it grouped-by-time)) (reverse available-times))
     ;; (--map (replel--overview-draw-container it) (replel--container-ls))
     ;; (insert (string-join (--map (gethash :name it) (replel--container-ls)) "\n"))
