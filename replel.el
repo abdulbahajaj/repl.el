@@ -62,8 +62,8 @@
     (if diff
 	(message
 	 (format
-	  "in the definition of %s you have used one or more undefined attributes: %s"
-	  replel-name diff))
+	  "in the definition of %s's replel you have used one or more undefined attributes: %s"
+	  image-name diff))
       (puthash image-name conf-hashtable replel--defined-conf))))
 
 
@@ -124,11 +124,11 @@
 (cl-defun replel--container-ls ()
   (--map
    (let ((container-desc (s-split ":" it)))
-     (replel--ht :name (car container-desc) :image (cadr container-desc)))
+     (replel--ht :name (car container-desc) :image (cadr container-desc) :created-at (caddr container-desc)))
    (butlast
     (s-split
      "\n"
-     (replel--container-ps :dformat "{{.Names}}:{{.Image}}")))))
+     (replel--container-ps :dformat "{{.Names}}:{{.Image}}:{{.CreatedAt}}")))))
 
 (cl-defun replel--current-container-name ()
   (let ((current-path default-directory))
@@ -174,8 +174,7 @@
     "Starling" "Stingray" "Stinkbug" "Stork" "Swallow" "Swan" "Tapir" "Tarsier" "Termite"
     "Tiger" "Toad" "Trout" "Turkey" "Turtle" "Viper" "Vulture" "Wallaby" "Walrus" "Wasp"
     "Weasel" "Whale" "Wildcat" "Wolf" "Wolverine" "Wombat" "Woodcock" "Woodpecker"
-    "Worm" "Wren" "Yak" "Zebra"
-    ))
+    "Worm" "Wren" "Yak" "Zebra" ))
 
 (defconst  replel--container-naming-list-length (length replel--container-naming-list))
 
@@ -195,6 +194,7 @@
 	 (open (gethash :open replel-conf)))
     (replel--container-open :container-name container-name :path open)))
 
+
 (cl-defun replel-start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
   (let ((replel-conf (replel--get-conf image-name))
@@ -204,6 +204,7 @@
 			   :container-name container-name)
     (replel--container-open :container-name container-name
 			    :path (gethash :open replel-conf))))
+
 
 (cl-defun replel-resume-select ()
   "Select a replel to run"
@@ -220,6 +221,73 @@
    (ivy-read "Select image "
 	     (--map (gethash :repository it)
 		    (replel--container-image-ls)))))
+
+;; main view
+(cl-defun replel--overview-draw-container (cont)
+  (print cont)
+  (let* ((start-pos (point))
+	 (container-name (gethash :name cont))
+	 (end-pos (+ start-pos (length container-name))))
+    (message (format "%s - %s" start-pos end-pos))
+    (insert (format "%s\n"  container-name))
+    (let ((map (make-sparse-keymap)))
+      (define-key map (kbd "<return>")
+	(lambda () (interactive) (replel-resume container-name)))
+      (put-text-property start-pos end-pos 'keymap map))
+    ;; (add-face-text-property start-pos end-pos '(:height 3))
+    ;; (add-face-text-property start-pos end-pos '(:weight bold))
+    ;; (add-face-text-property start-pos end-pos '(:foreground "#fff"))
+    ))
+
+(cl-defun replel--overview-draw-section (date conts)
+  (print date)
+  (print conts)
+  (let* ((start-pos (point))
+	 (end-pos (+ start-pos (length date))))
+    (insert (format "%s\n" date))
+    (add-face-text-property start-pos end-pos '(face :underline t))
+    (add-face-text-property start-pos end-pos '(face bold)))
+  (--map (replel--overview-draw-container it) conts)
+  ;; (insert "\n")
+  )
+
+(define-derived-mode
+  replel-mode
+  special-mode
+  "Replel"
+  "Goes to Replel overview")
+
+(cl-defun replel-overview ()
+  (interactive)
+  (let ((replel-buffer (generate-new-buffer "*replel*")))
+    (switch-to-buffer replel-buffer)
+    (replel-mode)
+    (replel-overview-refresh)))
+
+(cl-defun replel-overview-refresh ()
+  (interactive)
+  (setq inhibit-read-only t)
+  (let* ((current-pos (point))
+	 (grouped-by-time
+	  (--reduce-from
+	   (let ((created-at (gethash :created-at it)))
+	     (puthash created-at (cons it (or (gethash created-at acc) '())) acc)
+	     acc)
+	   (make-hash-table :test 'equal) (replel--container-ls)))
+	 (available-times (replel--ht-get-keys grouped-by-time)))
+    (print "----------------------------------------")
+    (print grouped-by-time)
+    (print available-times)
+    (print "----------------------------------------")
+    (erase-buffer)
+    (print available-times)
+    (--map (replel--overview-draw-section it (gethash it grouped-by-time)) (reverse available-times))
+    ;; (--map (replel--overview-draw-container it) (replel--container-ls))
+    ;; (insert (string-join (--map (gethash :name it) (replel--container-ls)) "\n"))
+    (goto-char current-pos))
+  (setq inhibit-read-only nil))
+
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
