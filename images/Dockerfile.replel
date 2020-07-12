@@ -1,0 +1,7 @@
+FROM ubuntu:18.04
+
+ARG dep
+ARG template
+
+RUN apt-get update -y && apt-get install -y $dep
+COPY $template /replel/
