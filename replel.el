@@ -124,7 +124,9 @@
 (cl-defun replel--container-ls ()
   (--map
    (let ((container-desc (s-split ":" it)))
-     (replel--ht :name (car container-desc) :image (cadr container-desc) :created-at (caddr container-desc)))
+     (replel--ht :name (car container-desc)
+		 :image (cadr container-desc)
+		 :created-at (s-replace "-" " " (s-replace-regexp " .*" "" (caddr container-desc)))))
    (butlast
     (s-split
      "\n"
@@ -150,21 +152,21 @@
 ;; Name generation
 
 (defconst replel--container-naming-list
-  '("Aardvark" "Albatross" "Alligator" "Alpaca" "Ant" "Anteater" "Antelope" "Ape" "Armadillo"
-    "Donkey" "Baboon" "Badger" "Barracuda" "Bat" "Bear" "Beaver" "Bee" "Bison" "Boar" "Buffalo"
-    "Butterfly" "Camel" "Capybara" "Caribou" "Cassowary" "Cat" "Caterpillar" "Cattle" "Chamois" "Cheetah"
-    "Chicken" "Chimpanzee" "Chinchilla" "Chough" "Clam" "Cobra" "Cockroach" "Cod" "Cormorant" "Coyote"
-    "Crab" "Crane" "Crocodile" "Crow" "Curlew" "Deer" "Dinosaur" "Dog" "Dogfish"
+  '("Aardvark" "Albatross" "Alligator" "Alpaca" "Ant" "Anteater" "Antelope" "Ape"
+    "Donkey" "Baboon" "Badger" "Barracuda" "Bat" "Bear" "Beaver" "Bee" "Bison" "Boar"
+    "Butterfly" "Camel" "Capybara" "Caribou" "Cassowary" "Cat" "Caterpillar" "Cattle"
+    "Chicken" "Chimpanzee" "Chinchilla" "Chough" "Clam" "Cobra" "Cockroach" "Cod" "Cormorant"
+    "Crab" "Crane" "Crocodile" "Crow" "Curlew" "Deer" "Dinosaur" "Dog" "Dogfish" "Buffalo"
     "Dolphin" "Dotterel" "Dove" "Dragonfly" "Duck" "Dugong" "Dunlin" "Eagle" "Echidna"
-    "Eel" "Eland" "Elephant" "Elk" "Emu" "Falcon" "Ferret" "Finch" "Fish"
-    "Flamingo" "Fly" "Fox" "Frog" "Gaur" "Gazelle" "Gerbil" "Giraffe" "Gnat"
+    "Eel" "Eland" "Elephant" "Elk" "Emu" "Falcon" "Ferret" "Finch" "Fish" "Cheetah"
+    "Flamingo" "Fly" "Fox" "Frog" "Gaur" "Gazelle" "Gerbil" "Giraffe" "Gnat" "Coyote"
     "Gnu" "Goat" "Goldfinch" "Goldfish" "Goose" "Gorilla" "Goshawk" "Grasshopper" "Grouse"
     "Guanaco" "Gull" "Hamster" "Hare" "Hawk" "Hedgehog" "Heron" "Herring" "Hippopotamus"
     "Hornet" "Horse" "Human" "Hummingbird" "Hyena" "Ibex" "Ibis" "Jackal" "Jaguar"
     "Jay" "Jellyfish" "Kangaroo" "Kingfisher" "Koala" "Kookabura" "Kouprey" "Kudu" "Lapwing"
-    "Lark" "Lemur" "Leopard" "Lion" "Llama" "Lobster" "Locust" "Loris" "Louse"
+    "Lark" "Lemur" "Leopard" "Lion" "Llama" "Lobster" "Locust" "Loris" "Louse" "Chamois"
     "Lyrebird" "Magpie" "Mallard" "Manatee" "Mandrill" "Mantis" "Marten" "Meerkat" "Mink"
-    "Mole" "Mongoose" "Monkey" "Moose" "Mosquito" "Mouse" "Mule" "Narwhal" "Newt"
+    "Mole" "Mongoose" "Monkey" "Moose" "Mosquito" "Mouse" "Mule" "Narwhal" "Newt" "Armadillo"
     "Nightingale" "Octopus" "Okapi" "Opossum" "Oryx" "Ostrich" "Otter" "Owl" "Oyster"
     "Panther" "Parrot" "Partridge" "Peafowl" "Pelican" "Penguin" "Pheasant" "Pig" "Pigeon"
     "Pony" "Porcupine" "Porpoise" "Quail" "Quelea" "Quetzal" "Rabbit" "Raccoon" "Rail"
@@ -184,16 +186,13 @@
     (--iterate (nth (random replel--container-naming-list-length) replel--container-naming-list) "" 4))
    "-"))
 
-
 ;;  Replel API
-
 (cl-defun replel-resume (container-name) 
   (replel--container-resume container-name)
   (let* ((image-name (replel--container-image-name container-name))
 	 (replel-conf (replel--get-conf image-name))
 	 (open (gethash :open replel-conf)))
     (replel--container-open :container-name container-name :path open)))
-
 
 (cl-defun replel-start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
@@ -204,7 +203,6 @@
 			   :container-name container-name)
     (replel--container-open :container-name container-name
 			    :path (gethash :open replel-conf))))
-
 
 (cl-defun replel-resume-select ()
   "Select a replel to run"
@@ -227,25 +225,19 @@
   (let* ((start-pos (point))
 	 (container-name (gethash :name cont))
 	 (end-pos (+ start-pos (length container-name))))
-    (insert (format "%s\n"  container-name))
+    (insert (format "+ %s\t\n"  container-name ))
     (let ((map (make-sparse-keymap)))
       (define-key map (kbd "<return>")
 	(lambda () (interactive) (replel-resume container-name)))
-      (put-text-property start-pos end-pos 'keymap map))
-    ;; (add-face-text-property start-pos end-pos '(:height 3))
-    ;; (add-face-text-property start-pos end-pos '(:weight bold))
-    ;; (add-face-text-property start-pos end-pos '(:foreground "#fff"))
-    ))
+      (put-text-property start-pos end-pos 'keymap map))))
 
 (cl-defun replel--overview-draw-section (date conts)
   (let* ((start-pos (point))
 	 (end-pos (+ start-pos (length date))))
-    (insert (format "%s\n" date))
-    (add-face-text-property start-pos end-pos '(face :underline t))
+    (insert (format "[%s]\n" date))
+    ;; (add-face-text-property start-pos end-pos '(face :underline t))
     (add-face-text-property start-pos end-pos '(face bold)))
-  (--map (replel--overview-draw-container it) conts)
-  ;; (insert "\n")
-  )
+  (--map (replel--overview-draw-container it) (reverse conts)))
 
 (define-derived-mode
   replel-mode
@@ -277,8 +269,6 @@
     ;; (insert (string-join (--map (gethash :name it) (replel--container-ls)) "\n"))
     (goto-char current-pos))
   (setq inhibit-read-only nil))
-
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
