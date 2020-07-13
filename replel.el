@@ -15,8 +15,13 @@
 
 (require 'cl-lib)
 
+(cl-defstruct replel--rule-st image (run nil) (open "/"))
+(cl-defstruct replel--container-st name image created-at)
+(cl-defstruct replel--image-st repository)
 
-;; Hashtable functionality
+
+
+;;;; Hashtable functionality
 
 (cl-defun replel--ht-get-keys (hashtable)
   "Given a hash table, return a list of all keys"
@@ -37,37 +42,31 @@
 
 
 
-;; Rules
 
-(defvar replel--defined-conf (make-hash-table :test 'equal)
+;;;; Rules
+
+(defvar replel--defined-rules (make-hash-table :test 'equal)
   "Contains a list of all defined repls")
 
-(defconst replel--allowed-attrs '(:image :run :open))
+(cl-defun replel--get-rule (replel-name)
+  (or (gethash replel-name replel--defined-rules)
+      (make-replel--rule-st
+       :image replel-name)))
 
-(cl-defun replel--get-conf (replel-name)
-  (or (gethash replel-name replel--defined-conf)
-      (replel--ht
-       :image replel-name
-       :run nil
-       :open "/")))
+(cl-defun replel--rule-names-list ()
+  (replel--ht-get-keys replel--defined-rules))
 
-(cl-defun replel--names-list ()
-  (replel--ht-get-keys replel--defined-conf))
-
-(cl-defun replel-define (&rest conf-list)
+(cl-defun replel-defrule (&rest rule-attrs)
   "Define a replel"
-  (let* ((conf-hashtable (apply 'replel--ht conf-list))
-	 (image-name (gethash :image conf-hashtable))
-	 (diff (-difference (replel--ht-get-keys conf-hashtable) replel--allowed-attrs)))
-    (if diff
-	(message
-	 (format
-	  "in the definition of %s's replel you have used one or more undefined attributes: %s"
-	  image-name diff))
-      (puthash image-name conf-hashtable replel--defined-conf))))
+  (let* ((rule (apply 'make-replel--rule-st rule-attrs))
+	 (image-name (replel--rule-st-image rule)))
+    (puthash image-name rule replel--defined-rules)))
 
 
-;; Helpers
+
+
+;;;; Helpers
+
 (cl-defun replel--cmd-run (cmd)
   (let ((default-dir default-directory))
     (cd "/")
@@ -83,7 +82,9 @@
   (s-join " || " cmds))
 
 
-;; Interacting with container runtime
+
+
+;;;; Interacting with container runtime
 
 (cl-defun replel--container-run (&key image-name container-name)
   "Run a docker container with image `image-name` and container `container-name`"
@@ -104,13 +105,14 @@
 
 
 
-;; Retrieving info
+
+;;;; Retrieving info
 
 (cl-defun replel--container-image-ls ()
   "Returns a string list of image names"
   (--map
    (let ((image-desc (s-split ":" it)))
-     (replel--ht :repository (car image-desc)))
+     (make-replel--image-st :repository (car image-desc)))
    (butlast
     (s-split "\n"
 	     (replel--cmd-run "docker image ls --format='{{.Repository}}'")))))
@@ -124,9 +126,10 @@
 (cl-defun replel--container-ls ()
   (--map
    (let ((container-desc (s-split ":" it)))
-     (replel--ht :name (car container-desc)
-		 :image (cadr container-desc)
-		 :created-at (s-replace "-" " " (s-replace-regexp " .*" "" (caddr container-desc)))))
+     (make-replel--container-st
+      :name (car container-desc)
+      :image (cadr container-desc)
+      :created-at (s-replace "-" " " (s-replace-regexp " .*" "" (caddr container-desc)))))
    (butlast
     (s-split
      "\n"
@@ -139,17 +142,19 @@
 (cl-defun replel--container-get-desc (container-name)
   (car
     (let ((current-container-name container-name))
-      (--drop-while (let ((container-name (gethash :name it)))
+      (--drop-while (let ((container-name (replel--container-st-name it)))
 		      (if (string= current-container-name container-name) nil t))
 		    (replel--container-ls)))))
 
 (cl-defun replel--container-image-name (container-name)
-  (gethash :image
-	   (let ((container-desc (replel--container-get-desc container-name)))
-	     (if container-desc container-desc (make-hash-table)))))
+  (replel--container-st-image
+   (let ((container-desc (replel--container-get-desc container-name)))
+     (or container-desc (make-replel--container-st)))))
 
 
-;; Name generation
+
+
+;;;; Name generation
 
 (defconst replel--container-naming-list
   '("Aardvark" "Albatross" "Alligator" "Alpaca" "Ant" "Anteater" "Antelope" "Ape"
@@ -186,30 +191,34 @@
     (--iterate (nth (random replel--container-naming-list-length) replel--container-naming-list) "" 4))
    "-"))
 
-;;  Replel API
+
+
+
+;;;; Replel API
+
 (cl-defun replel-resume (container-name) 
   (replel--container-resume container-name)
   (let* ((image-name (replel--container-image-name container-name))
-	 (replel-conf (replel--get-conf image-name))
-	 (open (gethash :open replel-conf)))
+	 (replel-rule (replel--get-rule image-name))
+	 (open (replel--rule-st-open replel-rule)))
     (replel--container-open :container-name container-name :path open)))
 
 (cl-defun replel-start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
-  (let ((replel-conf (replel--get-conf image-name))
+  (let ((replel-rule (replel--get-rule image-name))
 	(container-name (replel--gen-name)))
     (cd "/")
     (replel--container-run :image-name image-name
 			   :container-name container-name)
     (replel--container-open :container-name container-name
-			    :path (gethash :open replel-conf))))
+			    :path (replel--rule-st-open replel-rule))))
 
 (cl-defun replel-resume-select ()
   "Select a replel to run"
   (interactive)
   (replel-resume
    (ivy-read "Select container "
-	     (--map (gethash :name it)
+	     (--map (replel--container-st-name it)
 		    (replel--container-ls)))))
 
 (cl-defun replel-start-select ()
@@ -217,13 +226,17 @@
   (interactive)
   (replel-start
    (ivy-read "Select image "
-	     (--map (gethash :repository it)
+	     (--map (replel--container-st-rep it)
 		    (replel--container-image-ls)))))
 
-;; main view
+
+
+
+;;;; Main view
+
 (cl-defun replel--overview-draw-container (cont)
   (let* ((start-pos (point))
-	 (container-name (gethash :name cont))
+	 (container-name (replel--container-st-name cont))
 	 (end-pos (+ start-pos (length container-name))))
     (insert (format "+ %s\t\n"  container-name ))
     (let ((map (make-sparse-keymap)))
@@ -258,25 +271,26 @@
   (let* ((current-pos (point))
 	 (grouped-by-time
 	  (--reduce-from
-	   (let ((created-at (gethash :created-at it)))
+	   (let ((created-at (replel--container-st-created-at it)))
 	     (puthash created-at (cons it (or (gethash created-at acc) '())) acc)
 	     acc)
 	   (make-hash-table :test 'equal) (replel--container-ls)))
 	 (available-times (replel--ht-get-keys grouped-by-time)))
     (erase-buffer)
-    (--map (replel--overview-draw-section it (gethash it grouped-by-time)) (reverse available-times))
+    (--map (replel--overview-draw-section it (gethash it grouped-by-time))
+	   (reverse available-times))
     ;; (--map (replel--overview-draw-container it) (replel--container-ls))
     ;; (insert (string-join (--map (gethash :name it) (replel--container-ls)) "\n"))
     (goto-char current-pos))
   (setq inhibit-read-only nil))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;  Defining repls
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;  Defining rules
 
 ;; Defining replels
-(replel-define
+(replel-defrule
  :image "ubuntu"
  :run "make"
  :open "/test.txt")
