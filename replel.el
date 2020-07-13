@@ -234,30 +234,6 @@
 
 ;;;; Main view
 
-(cl-defun replel--overview-draw-container (cont)
-  (let* ((start-pos (point))
-	 (container-name (replel--container-st-name cont))
-	 (end-pos (+ start-pos (length container-name))))
-    (insert (format "+ %s\t\n"  container-name ))
-    (let ((map (make-sparse-keymap)))
-      (define-key map (kbd "<return>")
-	(lambda () (interactive) (replel-resume container-name)))
-      (put-text-property start-pos end-pos 'keymap map))))
-
-(cl-defun replel--overview-draw-section (date conts)
-  (let* ((start-pos (point))
-	 (end-pos (+ start-pos (length date))))
-    (insert (format "[%s]\n" date))
-    ;; (add-face-text-property start-pos end-pos '(face :underline t))
-    (add-face-text-property start-pos end-pos '(face bold)))
-  (--map (replel--overview-draw-container it) (reverse conts)))
-
-(define-derived-mode
-  replel-mode
-  special-mode
-  "Replel"
-  "Goes to Replel overview")
-
 (cl-defun replel-overview ()
   (interactive)
   (let ((replel-buffer (generate-new-buffer "*replel*")))
@@ -268,21 +244,33 @@
 (cl-defun replel-overview-refresh ()
   (interactive)
   (setq inhibit-read-only t)
-  (let* ((current-pos (point))
-	 (grouped-by-time
-	  (--reduce-from
-	   (let ((created-at (replel--container-st-created-at it)))
-	     (puthash created-at (cons it (or (gethash created-at acc) '())) acc)
-	     acc)
-	   (make-hash-table :test 'equal) (replel--container-ls)))
-	 (available-times (replel--ht-get-keys grouped-by-time)))
+  (let* ((current-pos (point)))
     (erase-buffer)
-    (--map (replel--overview-draw-section it (gethash it grouped-by-time))
-	   (reverse available-times))
-    ;; (--map (replel--overview-draw-container it) (replel--container-ls))
-    ;; (insert (string-join (--map (gethash :name it) (replel--container-ls)) "\n"))
+    (--map (replel--overview-draw-container it)
+	   (replel--container-ls))
     (goto-char current-pos))
   (setq inhibit-read-only nil))
+
+(cl-defun replel--overview-draw-container (cont)
+  (let* ((start-pos (point))
+	 (container-name (replel--container-st-name cont))
+	 (button-text (format "%s\t\n"  container-name))
+	 (end-pos (+ start-pos (length button-text))))
+    (insert button-text)
+    (let ((map (make-sparse-keymap)))
+      (define-key map (kbd "<return>")
+	(lambda () (interactive) (replel-resume container-name)))
+      (put-text-property start-pos end-pos 'keymap map))))
+
+(define-derived-mode
+  replel-mode
+  special-mode
+  "Replel"
+  "Goes to Replel overview")
+
+
+
+
 
 
 
