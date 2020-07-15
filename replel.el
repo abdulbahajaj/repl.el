@@ -16,8 +16,11 @@
 (require 'cl-lib)
 
 (cl-defstruct replel--rule-st image (run nil) (open "/"))
-(cl-defstruct replel--container-st name image created-at)
+(cl-defstruct replel--container-st
+  name image created-at command running-for status size ports id labels mounts networks)
+
 (cl-defstruct replel--image-st repository)
+
 
 
 
@@ -125,15 +128,37 @@
 
 (cl-defun replel--container-ls ()
   (--map
-   (let ((container-desc (s-split ":" it)))
+   (let ((container-desc (s-split "__-" it)))
      (make-replel--container-st
-      :name (car container-desc)
-      :image (cadr container-desc)
-      :created-at (s-replace "-" " " (s-replace-regexp " .*" "" (caddr container-desc)))))
+      :name (nth 0 container-desc)
+      :image (nth 1 container-desc)
+      :created-at (s-replace "-" " " (s-replace-regexp " .*" "" (nth 2 container-desc)))
+      :command (nth 3 container-desc)
+      :running-for (nth 4 container-desc)
+      :status (nth 5 container-desc)
+      :size (nth 6 container-desc)
+      :ports (nth 7 container-desc)
+      :id (nth 8 container-desc)
+      :labels (nth 9 container-desc)
+      :mounts (nth 10 container-desc)
+      :networks (nth 11 container-desc)))
    (butlast
     (s-split
      "\n"
-     (replel--container-ps :dformat "{{.Names}}:{{.Image}}:{{.CreatedAt}}")))))
+     (replel--container-ps
+      :dformat
+      (string-join '("{{.Names}}"
+			   "{{.Image}}"
+			   "{{.CreatedAt}}"
+			   "{{.Command}}"
+			   "{{.RunningFor}}"
+			   "{{.Status}}"
+			   "{{.Size}}"
+			   "{{.Ports}}"
+			   "{{.ID}}"
+			   "{{.Labels}}"
+			   "{{.Mounts}}"
+			   "{{.Networks}}") "__-"  ))))))
 
 (cl-defun replel--current-container-name ()
   (let ((current-path default-directory))
@@ -232,7 +257,45 @@
 
 
 
+;;;; UI components
+
+(cl-defun replel--ui-button (&key text bindings)
+  (let* ((start-pos (point))
+	 (end-pos (+ start-pos (length text))))
+    (insert text)
+    (let ((map (make-sparse-keymap)))
+      (--map (define-key map (kbd (car it)) (cadr it)) bindings)
+      (put-text-property start-pos end-pos 'keymap map))))
+
+(cl-defun replel--ui-normalize (str width)
+  (let ((len (length str)))
+    (if (> len width)
+	(format "%s..." (substring str 0 (- width 3)))
+      (concat str (s-repeat (- width len) " ")))))
+
+(cl-defun replel--ui-row (&key cols width-list)
+  (concat
+   (string-join
+    (--map-indexed
+     (let ((width (nth it-index width-list)))
+       (if width (replel--ui-normalize it width) it))
+     cols) " ") "\n"))
+
+
+
+
 ;;;; Main view
+
+(defmacro replel--ilm (&rest body)
+  `(lambda ()
+     (interactive)
+     ,@body))
+
+(define-derived-mode
+  replel-mode
+  special-mode
+  "Replel"
+  "Goes to Replel overview")
 
 (cl-defun replel-overview ()
   (interactive)
@@ -244,33 +307,31 @@
 (cl-defun replel-overview-refresh ()
   (interactive)
   (setq inhibit-read-only t)
-  (let* ((current-pos (point)))
+  (let* ((current-pos (point))
+	 (window-width (window-total-width)))
     (erase-buffer)
-    (--map (replel--overview-draw-container it)
+    (--map (replel--overview-draw-container it window-width)
 	   (replel--container-ls))
     (goto-char current-pos))
   (setq inhibit-read-only nil))
 
-(cl-defun replel--overview-draw-container (cont)
-  (let* ((start-pos (point))
-	 (container-name (replel--container-st-name cont))
-	 (button-text (format "%s\t\n"  container-name))
-	 (end-pos (+ start-pos (length button-text))))
-    (insert button-text)
-    (let ((map (make-sparse-keymap)))
-      (define-key map (kbd "<return>")
-	(lambda () (interactive) (replel-resume container-name)))
-      (put-text-property start-pos end-pos 'keymap map))))
+(cl-defun replel--overview-gen-container-text (cont window-width)
+  (let* ((tw (floor (* window-width 0.2)))
+	(width-list (list tw tw 30)))
+    (replel--ui-row :cols (list (replel--container-st-status cont)
+				(replel--container-st-image cont)
+				(replel--container-st-name cont))
+		    :width-list width-list)))
 
-(define-derived-mode
-  replel-mode
-  special-mode
-  "Replel"
-  "Goes to Replel overview")
-
-
-
-
+(cl-defun replel--overview-draw-container (cont window-width)
+  (replel--ui-button
+   :text (replel--overview-gen-container-text cont window-width)
+   :bindings
+   (list
+    (list "<return>"
+	  (replel--ilm
+	   (replel-resume
+	    (replel--container-st-name cont)))))))
 
 
 
