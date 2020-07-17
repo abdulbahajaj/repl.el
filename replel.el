@@ -114,8 +114,8 @@
 
 (cl-defun replel--container-delete (cont)
   (let ((cont-name (replel--container-st-name cont)))
-      (replel--cmd-run
-       (format "docker stop %s && docker rm %s" cont-name cont-name))))
+    (replel--cmd-run
+     (format "docker stop %s && docker rm %s" cont-name cont-name))))
 
 
 
@@ -159,17 +159,17 @@
      (replel--container-ps
       :dformat
       (string-join '("{{.Names}}"
-			   "{{.Image}}"
-			   "{{.CreatedAt}}"
-			   "{{.Command}}"
-			   "{{.RunningFor}}"
-			   "{{.Status}}"
-			   "{{.Size}}"
-			   "{{.Ports}}"
-			   "{{.ID}}"
-			   "{{.Labels}}"
-			   "{{.Mounts}}"
-			   "{{.Networks}}") "__-"  ))))))
+		     "{{.Image}}"
+		     "{{.CreatedAt}}"
+		     "{{.Command}}"
+		     "{{.RunningFor}}"
+		     "{{.Status}}"
+		     "{{.Size}}"
+		     "{{.Ports}}"
+		     "{{.ID}}"
+		     "{{.Labels}}"
+		     "{{.Mounts}}"
+		     "{{.Networks}}") "__-"  ))))))
 
 (cl-defun replel--current-container-name ()
   (let ((current-path default-directory))
@@ -177,10 +177,10 @@
 
 (cl-defun replel--container-get-desc (container-name)
   (car
-    (let ((current-container-name container-name))
-      (--drop-while (let ((container-name (replel--container-st-name it)))
-		      (if (string= current-container-name container-name) nil t))
-		    (replel--container-ls)))))
+   (let ((current-container-name container-name))
+     (--drop-while (let ((container-name (replel--container-st-name it)))
+		     (if (string= current-container-name container-name) nil t))
+		   (replel--container-ls)))))
 
 (cl-defun replel--container-image-name (container-name)
   (replel--container-st-image
@@ -285,7 +285,7 @@
 	(format "%s..." (substring str 0 (- width 3)))
       (concat str (s-repeat (- width len) " ")))))
 
-(cl-defun replel--ui-row (&key cols width-list)
+(cl-defun replel--ui-row-get-text (&key cols width-list)
   (concat
    (string-join
     (--map-indexed
@@ -323,20 +323,20 @@
 	 (tw (floor (* (window-total-width) 0.2)))
 	 (width-list (list tw tw 30)))
     (erase-buffer)
-    (insert (replel--ui-row :cols (list "STATUS"
-				"REPO"
-				"NAME")
-		  :width-list width-list))
+    (insert (replel--ui-row-get-text :cols (list "STATUS"
+						 "REPO"
+						 "NAME")
+				     :width-list width-list))
     (--map (replel--overview-draw-container it width-list)
 	   (replel--container-ls))
     (goto-char current-pos))
   (setq inhibit-read-only nil))
 
 (cl-defun replel--overview-gen-container-text (cont width-list)
-  (replel--ui-row :cols (list (replel--container-st-status cont)
-			      (replel--container-st-image cont)
-			      (replel--container-st-name cont))
-		  :width-list width-list))
+  (replel--ui-row-get-text :cols (list (replel--container-st-status cont)
+				       (replel--container-st-image cont)
+				       (replel--container-st-name cont))
+			   :width-list width-list))
 
 (cl-defun replel--overview-draw-container (cont width-list)
   (replel--ui-button
