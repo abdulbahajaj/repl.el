@@ -19,7 +19,7 @@
 (cl-defstruct replel--container-st
   name image created-at command running-for status size ports id labels mounts networks)
 
-(cl-defstruct replel--image-st repository)
+(cl-defstruct replel--image-st repo)
 
 
 
@@ -106,6 +106,17 @@
      '("docker container start %s"
        "docker container unpause %s")))))
 
+(cl-defun replel--container-rename (cont new-name)
+  (replel--cmd-run
+   (format "docker rename %s %s"
+	   (replel--container-st-name cont)
+	   new-name)))
+
+(cl-defun replel--container-delete (cont)
+  (let ((cont-name (replel--container-st-name cont)))
+      (replel--cmd-run
+       (format "docker stop %s && docker rm %s" cont-name cont-name))))
+
 
 
 
@@ -115,7 +126,7 @@
   "Returns a string list of image names"
   (--map
    (let ((image-desc (s-split ":" it)))
-     (make-replel--image-st :repository (car image-desc)))
+     (make-replel--image-st :repo (car image-desc)))
    (butlast
     (s-split "\n"
 	     (replel--cmd-run "docker image ls --format='{{.Repository}}'")))))
@@ -175,6 +186,7 @@
   (replel--container-st-image
    (let ((container-desc (replel--container-get-desc container-name)))
      (or container-desc (make-replel--container-st)))))
+
 
 
 
@@ -251,7 +263,7 @@
   (interactive)
   (replel-start
    (ivy-read "Select image "
-	     (--map (replel--container-st-rep it)
+	     (--map (replel--image-st-repo it)
 		    (replel--container-image-ls)))))
 
 
@@ -328,6 +340,22 @@
    :text (replel--overview-gen-container-text cont window-width)
    :bindings
    (list
+    (list "u"
+	  (replel--ilm
+	   (replel-overview-refresh)
+	   (message "UPDATED")))
+    (list "r"
+	  (lambda (new-name)
+	    (interactive "sNew name: ")
+	    (replel--container-rename cont new-name)
+	    (replel-overview-refresh))
+	  (message "RENAMED"))
+    (list "d"
+	  (replel--ilm
+	   (if (y-or-n-p (format "Deleted %s" (replel--container-st-name cont)))
+	       (replel--container-delete cont))
+	   (replel-overview-refresh)
+	   (message "DELETED")))
     (list "<return>"
 	  (replel--ilm
 	   (replel-resume
