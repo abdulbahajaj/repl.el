@@ -320,24 +320,27 @@
   (interactive)
   (setq inhibit-read-only t)
   (let* ((current-pos (point))
-	 (window-width (window-total-width)))
+	 (tw (floor (* (window-total-width) 0.2)))
+	 (width-list (list tw tw 30)))
     (erase-buffer)
-    (--map (replel--overview-draw-container it window-width)
+    (insert (replel--ui-row :cols (list "STATUS"
+				"REPO"
+				"NAME")
+		  :width-list width-list))
+    (--map (replel--overview-draw-container it width-list)
 	   (replel--container-ls))
     (goto-char current-pos))
   (setq inhibit-read-only nil))
 
-(cl-defun replel--overview-gen-container-text (cont window-width)
-  (let* ((tw (floor (* window-width 0.2)))
-	(width-list (list tw tw 30)))
-    (replel--ui-row :cols (list (replel--container-st-status cont)
-				(replel--container-st-image cont)
-				(replel--container-st-name cont))
-		    :width-list width-list)))
+(cl-defun replel--overview-gen-container-text (cont width-list)
+  (replel--ui-row :cols (list (replel--container-st-status cont)
+			      (replel--container-st-image cont)
+			      (replel--container-st-name cont))
+		  :width-list width-list))
 
-(cl-defun replel--overview-draw-container (cont window-width)
+(cl-defun replel--overview-draw-container (cont width-list)
   (replel--ui-button
-   :text (replel--overview-gen-container-text cont window-width)
+   :text (replel--overview-gen-container-text cont width-list)
    :bindings
    (list
     (list "u"
