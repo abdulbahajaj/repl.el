@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: t; -*-
+;;; replel.el --- Use containers as a dev environment -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020 Abdul Bahajaj
 
@@ -6,20 +6,53 @@
 ;; URL: https://github.com/abdulbahajaj/repl.el
 ;; Keywords: repl, containers
 ;; Version: 0.1
-;; Package-Requires: ((dash "2.14.1") (docker-tramp "0.1") (emacs "24.5") (s 1.12.0))
 
 ;;; Commentary:
 
 ;; Repl.el is a repl.it for emacs. More specifically, it allows you to easily move to
 ;; predefined environments
 
+;;; Code
+
+(print default-directory)
+
 (require 'cl-lib)
+(require 'replel-pined-image-tag)
+
+(print replel--pined-image-tag)
 
 (cl-defstruct replel--rule-st image (run nil) (open "/"))
 (cl-defstruct replel--container-st
-  name image created-at command running-for status size ports id labels mounts networks)
+  name repo created-at command running-for status size ports id labels mounts networks)
 
 (cl-defstruct replel--image-st repo)
+
+(defconst replel--repo-namespace "replel")
+
+(cl-defstruct replel--repl-st repo lang)
+
+(defconst replel--repl-defined
+  (list
+   (make-replel--repl-st :repo "py3" :lang "python 3")
+   (make-replel--repl-st :repo "py2" :lang "python 2")
+   (make-replel--repl-st :repo "clang" :lang "clang")
+   (make-replel--repl-st :repo "cpp" :lang "c++")
+   (make-replel--repl-st :repo "clj" :lang "clojure")
+   (make-replel--repl-st :repo "cljs" :lang "clojure script")
+   (make-replel--repl-st :repo "java" :lang "java")
+   (make-replel--repl-st :repo "js" :lang "javascript")
+   (make-replel--repl-st :repo "sh" :lang "sh")
+   (make-replel--repl-st :repo "go" :lang "go")))
+
+(cl-defun replel--repl-get-langs ()
+  (--map (replel--repl-st-lang it) replel--repl-defined))
+
+(cl-defun replel--repl-get-repo (lang)
+  (format "%s/%s:$(git rev-parse head)"
+	  replel--repo-namespace
+	  (replel--repl-st-repo
+	   (car (--drop-while (not (string= lang (replel--repl-st-lang it)))
+			     replel--repl-defined)))))
 
 
 
@@ -142,7 +175,7 @@
    (let ((container-desc (s-split "__-" it)))
      (make-replel--container-st
       :name (nth 0 container-desc)
-      :image (nth 1 container-desc)
+      :repo (nth 1 container-desc)
       :created-at (s-replace "-" " " (s-replace-regexp " .*" "" (nth 2 container-desc)))
       :command (nth 3 container-desc)
       :running-for (nth 4 container-desc)
@@ -183,10 +216,9 @@
 		   (replel--container-ls)))))
 
 (cl-defun replel--container-image-name (container-name)
-  (replel--container-st-image
+  (replel--container-st-repo
    (let ((container-desc (replel--container-get-desc container-name)))
      (or container-desc (make-replel--container-st)))))
-
 
 
 
@@ -240,13 +272,14 @@
 	 (open (replel--rule-st-open replel-rule)))
     (replel--container-open :container-name container-name :path open)))
 
-(cl-defun replel-start (image-name)
+(cl-defun replel--start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
   (let ((replel-rule (replel--get-rule image-name))
 	(container-name (replel--gen-name)))
     (cd "/")
-    (replel--container-run :image-name image-name
-			   :container-name container-name)
+    (message
+     (replel--container-run :image-name image-name
+			    :container-name container-name))
     (replel--container-open :container-name container-name
 			    :path (replel--rule-st-open replel-rule))))
 
@@ -258,15 +291,20 @@
 	     (--map (replel--container-st-name it)
 		    (replel--container-ls)))))
 
-(cl-defun replel-start-select ()
+(cl-defun replel-start-image ()
   "Select a replel to run"
   (interactive)
-  (replel-start
+  (replel--start
    (ivy-read "Select image "
 	     (--map (replel--image-st-repo it)
 		    (replel--container-image-ls)))))
 
-
+(cl-defun replel-start-repl ()
+  (interactive)
+  (replel--start
+   (replel--get-repl-image
+    (ivy-read "select repl "
+	      (replel--repl-get-langs)))))
 
 
 ;;;; UI components
@@ -275,9 +313,9 @@
   (let* ((start-pos (point))
 	 (end-pos (+ start-pos (length text))))
     (insert text)
-    (let ((map (make-sparse-keymap)))
-      (--map (define-key map (kbd (car it)) (cadr it)) bindings)
-      (put-text-property start-pos end-pos 'keymap map))))
+    (let ((key-map (make-sparse-keymap)))
+      (--map (define-key key-map (kbd (car it)) (cadr it)) bindings)
+      (put-text-property start-pos end-pos 'keymap key-map))))
 
 (cl-defun replel--ui-normalize (str width)
   (let ((len (length str)))
@@ -334,7 +372,7 @@
 
 (cl-defun replel--overview-gen-container-text (cont width-list)
   (replel--ui-row-get-text :cols (list (replel--container-st-status cont)
-				       (replel--container-st-image cont)
+				       (replel--container-st-repo cont)
 				       (replel--container-st-name cont))
 			   :width-list width-list))
 
@@ -376,4 +414,5 @@
  :open "/test.txt")
 
 (provide 'replel)
-;;; repel ends here
+
+;;; replel.el ends here
