@@ -35,16 +35,15 @@
 (update-all-images
  (list
   (make-env :lang "clang" :deps '("build-essential") :template "templates/template.c")
-  ;; (make-env :lang "cpp" :deps '("build-essential"))
-  ;; (make-env :lang "clj" :deps '("clojure"))
-  ;; (make-env :lang "cljs" :deps '("clojure"))
-  ;; (make-env :lang "go" :deps '("golang"))
-  ;; (make-env :lang "java" :deps '("openjdk-11-jre-headless"))
-  ;; (make-env :lang "js" :deps '("nodejs"))
-  ;; (make-env :lang "py" :deps '("python3-pip"))
+  (make-env :lang "cpp" :deps '("build-essential"))
+  (make-env :lang "clj" :deps '("clojure"))
+  (make-env :lang "cljs" :deps '("clojure"))
+  (make-env :lang "go" :deps '("golang"))
+  (make-env :lang "java" :deps '("openjdk-11-jre-headless"))
+  (make-env :lang "js" :deps '("nodejs"))
+  (make-env :lang "py3" :deps '("python3-pip"))
   (make-env :lang "py2" :deps '("python-pip") :template "templates/template.py")
-  ;; (make-env :lang "sh" :deps '())
-  ;; (make-env :lang "go" :deps '("golang"))
+  (make-env :lang "sh" :deps '())
   ))
 
 
