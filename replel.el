@@ -48,11 +48,12 @@
   (--map (replel--repl-st-lang it) replel--repl-defined))
 
 (cl-defun replel--repl-get-repo (lang)
-  (format "%s/%s:$(git rev-parse head)"
+  (format "%s/%s:%s"
 	  replel--repo-namespace
 	  (replel--repl-st-repo
 	   (car (--drop-while (not (string= lang (replel--repl-st-lang it)))
-			     replel--repl-defined)))))
+			      replel--repl-defined)))
+	  replel--pined-image-tag))
 
 
 
