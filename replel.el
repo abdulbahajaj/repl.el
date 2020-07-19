@@ -17,7 +17,7 @@
 (print default-directory)
 
 (require 'cl-lib)
-(require 'replel-pined-image-tag)
+(require 'replel-build-info)
 
 (print replel--pined-image-tag)
 
