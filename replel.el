@@ -158,12 +158,16 @@
 
 (cl-defun replel--container-image-ls ()
   "Returns a string list of image names"
-  (--map
-   (let ((image-desc (s-split ":" it)))
-     (make-replel--image-st :repo (car image-desc)))
-   (butlast
-    (s-split "\n"
-	     (replel--cmd-run "docker image ls --format='{{.Repository}}'")))))
+  (let ((seperator "____"))
+    (--map
+     (let ((image-desc (s-split seperator it)))
+       (make-replel--image-st :repo (car image-desc)))
+     (butlast
+      (s-split "\n"
+	       (replel--cmd-run
+		(format "docker image ls --format='%s'"
+			(string-join '("{{.Repository}}:{{.Tag}}")
+				     seperator))))))))
 
 (cl-defun replel--container-ps (&optional &key filter dformat)
   (replel--cmd-run
@@ -172,38 +176,40 @@
 	   (when dformat (format " --format=\"%s\"" dformat)))))
 
 (cl-defun replel--container-ls ()
-  (--map
-   (let ((container-desc (s-split "__-" it)))
-     (make-replel--container-st
-      :name (nth 0 container-desc)
-      :repo (nth 1 container-desc)
-      :created-at (s-replace "-" " " (s-replace-regexp " .*" "" (nth 2 container-desc)))
-      :command (nth 3 container-desc)
-      :running-for (nth 4 container-desc)
-      :status (nth 5 container-desc)
-      :size (nth 6 container-desc)
-      :ports (nth 7 container-desc)
-      :id (nth 8 container-desc)
-      :labels (nth 9 container-desc)
-      :mounts (nth 10 container-desc)
-      :networks (nth 11 container-desc)))
-   (butlast
-    (s-split
-     "\n"
-     (replel--container-ps
-      :dformat
-      (string-join '("{{.Names}}"
-		     "{{.Image}}"
-		     "{{.CreatedAt}}"
-		     "{{.Command}}"
-		     "{{.RunningFor}}"
-		     "{{.Status}}"
-		     "{{.Size}}"
-		     "{{.Ports}}"
-		     "{{.ID}}"
-		     "{{.Labels}}"
-		     "{{.Mounts}}"
-		     "{{.Networks}}") "__-"  ))))))
+  (let ((seperator "_____"))
+    (--map
+     (let ((container-desc (s-split seperator it)))
+       (make-replel--container-st
+	:name (nth 0 container-desc)
+	:repo (nth 1 container-desc)
+	:created-at (s-replace "-" " " (s-replace-regexp " .*" "" (nth 2 container-desc)))
+	:command (nth 3 container-desc)
+	:running-for (nth 4 container-desc)
+	:status (nth 5 container-desc)
+	:size (nth 6 container-desc)
+	:ports (nth 7 container-desc)
+	:id (nth 8 container-desc)
+	:labels (nth 9 container-desc)
+	:mounts (nth 10 container-desc)
+	:networks (nth 11 container-desc)))
+     (butlast
+      (s-split
+       "\n"
+       (replel--container-ps
+	:dformat
+	(string-join '("{{.Names}}"
+		       "{{.Image}}"
+		       "{{.CreatedAt}}"
+		       "{{.Command}}"
+		       "{{.RunningFor}}"
+		       "{{.Status}}"
+		       "{{.Size}}"
+		       "{{.Ports}}"
+		       "{{.ID}}"
+		       "{{.Labels}}"
+		       "{{.Mounts}}"
+		       "{{.Networks}}")
+		     seperator)))))))
 
 (cl-defun replel--current-container-name ()
   (let ((current-path default-directory))
@@ -303,7 +309,7 @@
 (cl-defun replel-start-repl ()
   (interactive)
   (replel--start
-   (replel--get-repl-image
+   (replel--repl-get-repo
     (ivy-read "select repl "
 	      (replel--repl-get-langs)))))
 
