@@ -14,12 +14,9 @@
 
 ;;; Code
 
-(print default-directory)
-
 (require 'cl-lib)
 (require 'replel-build-info)
-
-(print replel--pined-image-tag)
+(require 'replel-repls)
 
 (cl-defstruct replel--rule-st image (run nil) (open "/"))
 (cl-defstruct replel--container-st
@@ -29,31 +26,16 @@
 
 (defconst replel--repo-namespace "replel")
 
-(cl-defstruct replel--repl-st repo lang)
+(cl-defun replel--repls-get-name ()
+  (--map (replel--repls-st-lang it) replel--repls-defined))
 
-(defconst replel--repl-defined
-  (list
-   (make-replel--repl-st :repo "py3" :lang "python 3")
-   (make-replel--repl-st :repo "py2" :lang "python 2")
-   (make-replel--repl-st :repo "clang" :lang "clang")
-   (make-replel--repl-st :repo "cpp" :lang "c++")
-   (make-replel--repl-st :repo "clj" :lang "clojure")
-   (make-replel--repl-st :repo "cljs" :lang "clojure script")
-   (make-replel--repl-st :repo "java" :lang "java")
-   (make-replel--repl-st :repo "js" :lang "javascript")
-   (make-replel--repl-st :repo "sh" :lang "sh")
-   (make-replel--repl-st :repo "go" :lang "go")))
-
-(cl-defun replel--repl-get-langs ()
-  (--map (replel--repl-st-lang it) replel--repl-defined))
-
-(cl-defun replel--repl-get-repo (lang)
+(cl-defun replel--repls-get-repo (lang)
   (format "%s/%s:%s"
 	  replel--repo-namespace
-	  (replel--repl-st-repo
-	   (car (--drop-while (not (string= lang (replel--repl-st-lang it)))
-			      replel--repl-defined)))
-	  replel--pined-image-tag))
+	  (replel--repls-st-repo
+	   (car (--drop-while (not (string= lang (replel--repls-st-lang it)))
+			      replel--repls-defined)))
+	  replel--build-info-pined-image-tag))
 
 
 
@@ -311,7 +293,7 @@
   (replel--start
    (replel--repl-get-repo
     (ivy-read "select repl "
-	      (replel--repl-get-langs)))))
+	      (replel--repls-get-langs)))))
 
 
 ;;;; UI components
