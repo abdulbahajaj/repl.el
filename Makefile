@@ -1,5 +1,5 @@
-.PHONY: build
-build:
+.PHONY: build-images
+build-images:
 	./images/build.el
 
 .PHONY: clean

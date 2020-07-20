@@ -1,6 +1,7 @@
 #!/bin/sh
 :; cd $(dirname $0)
 :; git clone https://github.com/magnars/dash.el.git dash || :
+:; (cd dash && git checkout 732d92eac56023a4fb4a5dc3d9d4e274ebf44bf9)
 :; export GIT_COMMIT_HASH=$(git rev-parse head)
 :; exec emacs --no-site-file --script $(basename $0)
 :; exit 0
