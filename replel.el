@@ -24,31 +24,10 @@
 
 (cl-defstruct replel--image-st repo)
 
-(defconst replel--repo-namespace "replel")
-
-(cl-defun replel--repls-get-name ()
-  (--map (replel--repls-st-lang it) replel--repls-defined))
-
-(cl-defun replel--repls-get-repo (lang)
-  (format "%s/%s:%s"
-	  replel--repo-namespace
-	  (replel--repls-st-repo
-	   (car (--drop-while (not (string= lang (replel--repls-st-lang it)))
-			      replel--repls-defined)))
-	  replel--build-info-pined-image-tag))
-
 
 
 
 ;;;; Hashtable functionality
-
-(cl-defun replel--ht-get-keys (hashtable)
-  "Given a hash table, return a list of all keys"
-  (let ((all-keys '()))
-    (maphash
-     (lambda (key val) (setq all-keys (cons key all-keys)))
-     hashtable)
-    all-keys))
 
 (cl-defun replel--ht-set (ht &rest vals)
   (while vals
@@ -291,9 +270,9 @@
 (cl-defun replel-start-repl ()
   (interactive)
   (replel--start
-   (replel--repl-get-repo
+   (replel--repls-get-repo
     (ivy-read "select repl "
-	      (replel--repls-get-langs)))))
+	      (replel--repls-get-name)))))
 
 
 ;;;; UI components
