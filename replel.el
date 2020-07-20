@@ -6,6 +6,7 @@
 ;; URL: https://github.com/abdulbahajaj/repl.el
 ;; Keywords: repl, containers
 ;; Version: 0.1
+;; Package-Requires: ((dash "2.14.1") (docker-tramp "0.1") (emacs "24.5") (s "1.12.0") (ivy "0.13.0"))
 
 ;;; Commentary:
 
