@@ -371,6 +371,7 @@
 	   (replel-resume
 	    (replel--container-st-name cont)))))))
 
+
 ;; Defining replels
 (replel-defrule
  :image "ubuntu"

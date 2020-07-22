@@ -1,7 +1,7 @@
 (require 'cl-lib)
 
 (cl-defstruct replel--repls-st
-  repo name (run-cmd "make run") template (apt-get '()))
+  repo name (run-cmd "make run") template (apt-get '()) (open-at "/replel"))
 
 (defconst replel--repo-namespace "replel")
 
@@ -16,9 +16,6 @@
    (make-replel--repls-st :name "clojure"
 			  :repo "clj"
 			  :apt-get '("clojure"))
-   (make-replel--repls-st :name "clojure script"
-			  :repo "cljs"
-			  :apt-get '("clojure"))
    (make-replel--repls-st :name "go"
 			  :repo "go"
 			  :apt-get '("golang"))
@@ -30,9 +27,11 @@
 			  :apt-get '("nodejs"))
    (make-replel--repls-st :name "python 3"
 			  :repo "py3"
+			  :template "templates/py"
 			  :apt-get '("python3-pip"))
    (make-replel--repls-st :name "python 2"
 			  :repo "py2"
+			  :template "templates/py"
 			  :apt-get '("python-pip"))
    (make-replel--repls-st :name "bash"
 			  :repo "bash"
@@ -62,7 +61,7 @@
   (--map (replel--repls-st-name it) replel--repls-defined))
 
 (cl-defun replel--repls-initialize ()
-  (--map (replel-defrule :image ) replel--repls-defined))
+  (--map (replel-defrule :image it) replel--repls-defined))
 
 
 (defun replel-repls-run ()
