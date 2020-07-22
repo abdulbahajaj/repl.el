@@ -9,11 +9,10 @@
   (list
    (make-replel--repls-st :name "c"
 			  :repo "clang"
-			  :apt-get '("build-essential")
-			  :template "templates/template.c")
+			  :apt-get '())
    (make-replel--repls-st :name "c++"
 			  :repo "cpp"
-			  :apt-get '("build-essential"))
+			  :apt-get '())
    (make-replel--repls-st :name "clojure"
 			  :repo "clj"
 			  :apt-get '("clojure"))
@@ -31,14 +30,12 @@
 			  :apt-get '("nodejs"))
    (make-replel--repls-st :name "python 3"
 			  :repo "py3"
-			  :template "templates/template.py"
 			  :apt-get '("python3-pip"))
    (make-replel--repls-st :name "python 2"
 			  :repo "py2"
-			  :apt-get '("python-pip")
-			  :template "templates/template.py")
-   (make-replel--repls-st :name "sh"
-			  :repo "sh"
+			  :apt-get '("python-pip"))
+   (make-replel--repls-st :name "bash"
+			  :repo "bash"
 			  :apt-get '())))
 
 (cl-defun replel--ht-get-keys (hashtable)
@@ -49,16 +46,27 @@
      hashtable)
     all-keys))
 
-(cl-defun replel--repls-get-repo (name)
+
+(cl-defun replel--repls-get-repo-from-obj (repl-obj)
   (format "%s/%s:%s"
 	  replel--repo-namespace
-	  (replel--repls-st-repo
-	   (car (--drop-while (not (string= name (replel--repls-st-name it)))
-			      replel--repls-defined)))
+	  (replel--repls-st-repo repl-obj)
 	  replel--build-info-pined-image-tag))
+
+(cl-defun replel--repls-get-repo (name)
+  (replel--repls-get-repo-from-obj
+   (car (--drop-while (not (string= name (replel--repls-st-name it)))
+		      replel--repls-defined))))
 
 (cl-defun replel--repls-get-name ()
   (--map (replel--repls-st-name it) replel--repls-defined))
 
+(cl-defun replel--repls-initialize ()
+  (--map (replel-defrule :image ) replel--repls-defined))
+
+
+(defun replel-repls-run ()
+  (interactive)
+  (compile "make run"))
 
 (provide 'replel-repls)

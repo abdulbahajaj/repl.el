@@ -41,7 +41,7 @@
    (update-repl-image :repo (replel--repls-st-repo it)
 		      :apt-get (replel--repls-st-apt-get it)
 		      :template (or (replel--repls-st-template it)
-				    (format "templates/template.%s" (replel--repls-st-repo it))))
+				    (format "templates/%s" (replel--repls-st-repo it))))
    images))
 
 (defun gen-build-info ()
