@@ -1,9 +1,12 @@
-FROM ubuntu:18.04
+ARG image_pin
+
+FROM replel/base:$image_pin
 
 ARG dep
 ARG template
+ARG open_at
 
-RUN apt-get update -y && apt-get install -y build-essential 
+ENV REPL_ENTRYPOINT=$open_at
 
 RUN apt-get install -y $dep
 

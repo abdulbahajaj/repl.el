@@ -26,27 +26,35 @@
   (print cmd)
   (print (shell-command-to-string (format "/bin/bash -c \"%s\"" cmd))))
 
-(cl-defun get-build-cmd (&key repo apt-get template)
-  (format "docker build -f Dockerfile.replel -t %s --build-arg dep=%s --build-arg template=%s %s"
-	     repo (string-join apt-get " ") template default-directory))
+(cl-defun get-build-cmd (&key repo apt-get template open-at)
+  (format
+   "docker build -f Dockerfile.replel -t %s --build-arg dep=%s --build-arg template=%s --build-arg open_at=%s --build-arg image_pin=%s %s"
+   repo (string-join apt-get " ") template open-at git-commit-hash default-directory))
 
-(cl-defun update-repl-image (&key repo apt-get template)
+(cl-defun update-repl-image (&key repo apt-get template open-at)
   (let ((repo (get-repo-full-name :repo repo)))
     (run-cmd
-     (get-build-cmd :repo repo :apt-get apt-get :template template))
+     (get-build-cmd :repo repo :apt-get apt-get :template template :open-at open-at))
     (run-cmd (format "docker push %s" repo))))
 
-(defun update-all-images (images)
+(defun update-all-images (repls)
   (--map
    (update-repl-image :repo (replel--repls-st-repo it)
 		      :apt-get (replel--repls-st-apt-get it)
+		      :open-at (or (replel--repls-st-open-at it)
+				   (format "/replel/main.%s" (replel--repls-st-repo it)))
 		      :template (or (replel--repls-st-template it)
 				    (format "templates/%s" (replel--repls-st-repo it))))
-   images))
+   repls))
 
 (defun gen-build-info ()
   `(progn
      (defconst replel--build-info-pined-image-tag ,git-commit-hash)))
+
+(defun build-base-image ()
+  (run-cmd
+   (format "docker build -f Dockerfile.base -t replel/base:%s %s && docker push replel/base:%s"
+	   git-commit-hash default-directory git-commit-hash)))
 
 (defun write-build-info (build-info)
   (write-region
@@ -54,6 +62,8 @@
    nil
    "../replel-build-info.el")
   (print "Updated conf file"))
+
+(build-base-image)
 
 (update-all-images replel--repls-defined)
 

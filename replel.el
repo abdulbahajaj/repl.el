@@ -6,7 +6,7 @@
 ;; URL: https://github.com/abdulbahajaj/repl.el
 ;; Keywords: repl, containers
 ;; Version: 0.1
-;; Package-Requires: ((dash "2.14.1") (docker-tramp "0.1") (emacs "24.5") (s "1.12.0") (ivy "0.13.0"))
+;; Package-Requires: ((dash "2.14.1") (docker-tramp "0.1") (emacs "24.5") (s "1.12.0"))
 
 ;;; Commentary:
 
@@ -256,7 +256,7 @@
   "Select a replel to run"
   (interactive)
   (replel-resume
-   (ivy-read "Select container "
+   (completing-read "Select container "
 	     (--map (replel--container-st-name it)
 		    (replel--container-ls)))))
 
@@ -264,7 +264,7 @@
   "Select a replel to run"
   (interactive)
   (replel--start
-   (ivy-read "Select image "
+   (completing-read "Select image "
 	     (--map (replel--image-st-repo it)
 		    (replel--container-image-ls)))))
 
@@ -272,8 +272,10 @@
   (interactive)
   (replel--start
    (replel--repls-get-repo
-    (ivy-read "select repl "
+    (completing-read "select repl "
 	      (replel--repls-get-name)))))
+
+
 
 
 ;;;; UI components
@@ -330,10 +332,12 @@
 	 (tw (floor (* (window-total-width) 0.2)))
 	 (width-list (list tw tw 30)))
     (erase-buffer)
-    (insert (replel--ui-row-get-text :cols (list "STATUS"
-						 "REPO"
-						 "NAME")
-				     :width-list width-list))
+    (insert
+     (replel--ui-row-get-text
+      :cols (list "STATUS"
+		  "REPO"
+		  "NAME")
+      :width-list width-list))
     (--map (replel--overview-draw-container it width-list)
 	   (replel--container-ls))
     (goto-char current-pos))
@@ -370,6 +374,8 @@
 	  (replel--ilm
 	   (replel-resume
 	    (replel--container-st-name cont)))))))
+
+
 
 
 ;; Defining replels
