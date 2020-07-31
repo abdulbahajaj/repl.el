@@ -196,7 +196,7 @@
 (define-minor-mode replel-mode
   "A minor mode that is enabled when a repl is entered"
   nil
-  "replel" '())
+  "replel" )
 
 (cl-defun replel--repls-get-repo-from-obj (repl-obj)
   (format "%s/%s:%s"
@@ -226,7 +226,7 @@
   (replel--container-resume cont-name)
   (let* ((open (replel--get-entrypoint cont-name)))
     (replel--container-open :cont-name cont-name :path open))
-  (replel-mode))
+  (replel-mode 1))
 
 (cl-defun replel--start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
@@ -237,7 +237,7 @@
 			    :cont-name cont-name))
     (replel--container-open :cont-name cont-name
 			    :path (replel--get-entrypoint cont-name)))
-  (replel-mode))
+  (replel-mode 1))
 
 (cl-defun replel-resume-select ()
   "Select a replel to run"
