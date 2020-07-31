@@ -214,6 +214,7 @@
 
 (defun replel-repls-run ()
   (interactive)
+  (save-buffer)
   (compile "make run"))
 
 (cl-defun replel--get-entrypoint (cont-name)
