@@ -183,10 +183,20 @@
   (s-replace-regexp
    "[\n|\t]+$" "" str))
 
+(defmacro replel--ilm (&rest body)
+  `(lambda ()
+     (interactive)
+     ,@body))
+
 
 
 
 ;;;; Replel API
+
+(define-minor-mode replel-mode
+  "A minor mode that is enabled when a repl is entered"
+  nil
+  "replel" '())
 
 (cl-defun replel--repls-get-repo-from-obj (repl-obj)
   (format "%s/%s:%s"
@@ -283,16 +293,7 @@
 
 ;;;; Overview view
 
-(define-minor-mode replel-mode
-  "A minor mode that is enabled when a repl is entered"
-  nil
-  "replel" '())
 
-
-(defmacro replel--ilm (&rest body)
-  `(lambda ()
-     (interactive)
-     ,@body))
 
 (define-derived-mode
   replel-major-mode
