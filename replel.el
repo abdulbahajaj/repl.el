@@ -102,7 +102,7 @@
 
 (cl-defun replel--container-ps (&optional &key filter dformat)
   (replel--cmd-run
-   (concat "docker ps --all"
+   (concat "docker ps "
 	   (when filter (format " --filter %s" filter))
 	   (when dformat (format " --format=\"%s\"" dformat)))))
 
