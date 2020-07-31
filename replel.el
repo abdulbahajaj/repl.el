@@ -295,8 +295,7 @@
   (interactive)
   (setq inhibit-read-only t)
   (let* ((current-pos (point))
-	 (tw (floor (* (window-total-width) 0.2)))
-	 (width-list (list tw tw 30)))
+	 (width-list (list 23 25 30)))
     (erase-buffer)
     (insert
      (replel--ui-row-get-text
