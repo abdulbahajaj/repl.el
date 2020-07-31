@@ -293,20 +293,20 @@
 
 ;;;; Overview view
 
-
-
 (define-derived-mode
   replel-major-mode
   special-mode
   "Replel overview"
   "Goes to Replel overview")
 
+(defconst replel--overview-width-proportion '(23 25 30))
+
 (defconst replel--overview-table-header
   (replel--ui-row-get-text
       :cols (list "STATUS"
 		  "REPO"
 		  "NAME")
-      :width-list width-list))
+      :width-list replel--overview-width-proportion))
 
 (cl-defun replel-overview ()
   (interactive)
@@ -319,10 +319,10 @@
   (interactive)
   (setq inhibit-read-only t)
   (let ((current-pos (point))
-	(width-list '(23 25 30)))
+	)
     (erase-buffer)
     (insert replel--overview-table-header)
-    (--map (replel--overview-draw-container it width-list)
+    (--map (replel--overview-draw-container it replel--overview-width-proportion)
 	   (replel--container-ls))
     (goto-char current-pos))
   (setq inhibit-read-only nil))
