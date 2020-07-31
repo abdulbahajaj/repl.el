@@ -19,47 +19,10 @@
 (require 'replel-build-info)
 (require 'replel-repls)
 
-(cl-defstruct replel--rule-st image (run nil) (open "/"))
 (cl-defstruct replel--container-st
   name repo created-at command running-for status size ports id labels mounts networks)
 
 (cl-defstruct replel--image-st repo)
-
-
-
-
-;;;; Hashtable functionality
-
-(cl-defun replel--ht-set (ht &rest vals)
-  (while vals
-    (puthash (car vals) (cadr vals) ht)
-    (setq vals (cddr vals)))
-  ht)
-
-(cl-defun replel--ht (&rest vals)
-  (apply 'replel--ht-set (cons (make-hash-table) vals)))
-
-
-
-
-;;;; Rules
-
-(defvar replel--defined-rules (make-hash-table :test 'equal)
-  "Contains a list of all defined repls")
-
-(cl-defun replel--get-rule (replel-name)
-  (or (gethash replel-name replel--defined-rules)
-      (make-replel--rule-st
-       :image replel-name)))
-
-(cl-defun replel--rule-names-list ()
-  (replel--ht-get-keys replel--defined-rules))
-
-(cl-defun replel-defrule (&rest rule-attrs)
-  "Define a replel"
-  (let* ((rule (apply 'make-replel--rule-st rule-attrs))
-	 (image-name (replel--rule-st-image rule)))
-    (puthash image-name rule replel--defined-rules)))
 
 
 
@@ -234,23 +197,23 @@
 
 ;;;; Replel API
 
+(cl-defun replel--get-entrypoint (container-name)
+  "/")
+
 (cl-defun replel-resume (container-name) 
   (replel--container-resume container-name)
-  (let* ((image-name (replel--container-image-name container-name))
-	 (replel-rule (replel--get-rule image-name))
-	 (open (replel--rule-st-open replel-rule)))
+  (let* ((open (replel--get-entrypoint container-name)))
     (replel--container-open :container-name container-name :path open)))
 
 (cl-defun replel--start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
-  (let ((replel-rule (replel--get-rule image-name))
-	(container-name (replel--gen-name)))
+  (let ((container-name (replel--gen-name)))
     (cd "/")
     (message
      (replel--container-run :image-name image-name
 			    :container-name container-name))
     (replel--container-open :container-name container-name
-			    :path (replel--rule-st-open replel-rule))))
+			    :path (replel--get-entry-point container-name))))
 
 (cl-defun replel-resume-select ()
   "Select a replel to run"
@@ -374,15 +337,6 @@
 	  (replel--ilm
 	   (replel-resume
 	    (replel--container-st-name cont)))))))
-
-
-
-
-;; Defining replels
-(replel-defrule
- :image "ubuntu"
- :run "make"
- :open "/test.txt")
 
 (provide 'replel)
 
