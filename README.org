@@ -1,10 +1,7 @@
+Run repl.it like repls in your emacs
+
 * Under construction
-+ [ ] Add run command to repls and make them runnable
-+ [ ] Allow resizing
-+ [ ] Integrate with dockerhub
-+ [ ] Release 
 + [ ] Create docs
 + [ ] Create tutorial
-+ [ ] Advertise
 + [ ] Create tests
 + [ ] Setup CI pipeline
