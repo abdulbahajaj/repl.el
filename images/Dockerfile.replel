@@ -11,3 +11,7 @@ ENV REPL_ENTRYPOINT=$open_at
 RUN apt-get install -y $dep
 
 COPY $template /replel/
+
+WORKDIR /replel/
+
+RUN git init
