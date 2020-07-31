@@ -174,6 +174,11 @@
     (--iterate (nth (random replel--container-naming-list-length) replel--container-naming-list) "" 4))
    "-"))
 
+
+
+
+;;;; Helpers
+
 (cl-defun replel--helper-remove-trailing-space (str)
   (s-replace-regexp
    "[\n|\t]+$" "" str))
@@ -182,6 +187,24 @@
 
 
 ;;;; Replel API
+
+(cl-defun replel--repls-get-repo-from-obj (repl-obj)
+  (format "%s/%s:%s"
+	  replel--repo-namespace
+	  (replel--repls-st-repo repl-obj)
+	  replel--build-info-pined-image-tag))
+
+(cl-defun replel--repls-get-repo (name)
+  (replel--repls-get-repo-from-obj
+   (car (--drop-while (not (string= name (replel--repls-st-name it)))
+		      replel--repls-defined))))
+
+(cl-defun replel--repls-get-name ()
+  (--map (replel--repls-st-name it) replel--repls-defined))
+
+(defun replel-repls-run ()
+  (interactive)
+  (compile "make run"))
 
 (cl-defun replel--get-entrypoint (cont-name)
    (replel--container-exec :workdir "/replel/"

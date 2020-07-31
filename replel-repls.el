@@ -56,43 +56,7 @@
    (make-replel--repls-st :name "bash"
 			  :repo "bash"
 			  :open-at "/replel/main.sh"
-			  :apt-get '())
-   ))
-
-(cl-defun replel--ht-get-keys (hashtable)
-  "Given a hash table, return a list of all keys"
-  (let ((all-keys '()))
-    (maphash
-     (lambda (key val) (setq all-keys (cons key all-keys)))
-     hashtable)
-    all-keys))
-
-(cl-defun replel--repls-get-repo-from-obj (repl-obj)
-  (format "%s/%s:%s"
-	  replel--repo-namespace
-	  (replel--repls-st-repo repl-obj)
-	  replel--build-info-pined-image-tag))
-
-(cl-defun replel--repls-get-repo (name)
-  (replel--repls-get-repo-from-obj
-   (car (--drop-while (not (string= name (replel--repls-st-name it)))
-		      replel--repls-defined))))
-
-(cl-defun replel--repls-get-name ()
-  (--map (replel--repls-st-name it) replel--repls-defined))
-
-(cl-defun replel--repls-initialize ()
-  (--map (replel-defrule :image it) replel--repls-defined))
-
-(defun replel-repls-run ()
-  (interactive)
-  (compile "make run"))
-
-(defun replel/test ()
-  (interactive)
-  (message (let ((process-environment tramp-remote-process-environment)) (getenv "PATH")) ))
-
-
+			  :apt-get '())))
 (provide 'replel-repls)
 
-;;; replel.el ends here
+;;; replel-repls.el ends here
