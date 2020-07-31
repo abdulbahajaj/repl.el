@@ -1,3 +1,20 @@
+;;; replel.el --- Use containers as a dev environment -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2020 Abdul Bahajaj
+
+;; Author: Abdul Bahajaj <abdulbahajaj@gmail.com>
+;; URL: https://github.com/abdulbahajaj/repl.el
+;; Keywords: repl, containers
+;; Version: 0.1
+;; Package-Requires: ((dash "2.14.1") (docker-tramp "0.1") (emacs "24.5") (s "1.12.0"))
+
+;;; Commentary:
+
+;; Repl.el is a repl.it for emacs. More specifically, it allows you to easily move to
+;; predefined environments
+
+;;; Code
+
 (require 'cl-lib)
 
 (cl-defstruct replel--repls-st
@@ -77,3 +94,5 @@
 
 
 (provide 'replel-repls)
+
+;;; replel.el ends here

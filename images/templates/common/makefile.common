@@ -1,6 +1,6 @@
 .PHONY: entrypoint
 entrypoint:
-	@echo $REPL_ENTRYPOINT
+	@echo ${REPL_ENTRYPOINT}
 .PHONY: %
 %:
 	@echo "Command is not supported in this REPL"

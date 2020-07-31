@@ -37,7 +37,7 @@
 		;; TODO Maybe support windows? probably not.
 		(format "/bin/sh -c \"%s\"" cmd))))
       (cd default-dir)
-      res)))
+      (replel--helper-remove-trailing-space res))))
 
 (cl-defun replel--cmd-or (cmds)
   "Or one or more commands"
@@ -48,20 +48,24 @@
 
 ;;;; Interacting with container runtime
 
-(cl-defun replel--container-run (&key image-name container-name)
-  "Run a docker container with image `image-name` and container `container-name`"
-  (replel--cmd-run (format "docker run -t -d --name %s %s" container-name image-name)))
+(cl-defun replel--container-run (&key image-name cont-name)
+  "Run a docker container with image `image-name` and container `cont-name`"
+  (replel--cmd-run (format "docker run -t -d --name %s %s" cont-name image-name)))
 
-(cl-defun replel--container-open (&key container-name path)
+
+(cl-defun replel--container-get-tramp-path (&key cont-name path)
+  (format "/docker:%s:%s" cont-name (or path "/")))
+
+(cl-defun replel--container-open (&key cont-name path)
   "Goes to the container at a specific file or dir"
-  (find-file (format "/docker:%s:%s" container-name (or path "/"))))
+  (find-file (replel--container-get-tramp-path :cont-name cont-name :path path)))
 
-(cl-defun replel--container-resume (container-name)
+(cl-defun replel--container-resume (cont-name)
   "Resumes a stopped/paused container"
   (replel--cmd-run
    (replel--cmd-or
     (mapcar
-     (lambda (cmd) (format cmd container-name))
+     (lambda (cmd) (format cmd cont-name))
      '("docker container start %s"
        "docker container unpause %s")))))
 
@@ -76,6 +80,9 @@
     (replel--cmd-run
      (format "docker stop %s && docker rm %s" cont-name cont-name))))
 
+(cl-defun replel--container-exec (&key workdir cont-name cmd)
+  (replel--cmd-run (format "docker exec -w %s %s %s" workdir cont-name cmd)))
+
 
 
 
@@ -87,12 +94,11 @@
     (--map
      (let ((image-desc (s-split seperator it)))
        (make-replel--image-st :repo (car image-desc)))
-     (butlast
       (s-split "\n"
 	       (replel--cmd-run
 		(format "docker image ls --format='%s'"
 			(string-join '("{{.Repository}}:{{.Tag}}")
-				     seperator))))))))
+				     seperator)))))))
 
 (cl-defun replel--container-ps (&optional &key filter dformat)
   (replel--cmd-run
@@ -117,39 +123,30 @@
 	:labels (nth 9 container-desc)
 	:mounts (nth 10 container-desc)
 	:networks (nth 11 container-desc)))
-     (butlast
-      (s-split
-       "\n"
-       (replel--container-ps
-	:dformat
-	(string-join '("{{.Names}}"
-		       "{{.Image}}"
-		       "{{.CreatedAt}}"
-		       "{{.Command}}"
-		       "{{.RunningFor}}"
-		       "{{.Status}}"
-		       "{{.Size}}"
-		       "{{.Ports}}"
-		       "{{.ID}}"
-		       "{{.Labels}}"
-		       "{{.Mounts}}"
-		       "{{.Networks}}")
-		     seperator)))))))
+     (s-split
+      "\n"
+      (replel--container-ps
+       :dformat
+       (string-join
+	'("{{.Names}}" "{{.Image}}" "{{.CreatedAt}}" "{{.Command}}"
+	  "{{.RunningFor}}" "{{.Status}}" "{{.Size}}" "{{.Ports}}"
+	  "{{.ID}}" "{{.Labels}}" "{{.Mounts}}" "{{.Networks}}")
+	seperator))))))
 
-(cl-defun replel--current-container-name ()
+(cl-defun replel--current-cont-name ()
   (let ((current-path default-directory))
     (s-replace-regexp ":.*" "" (s-replace-regexp "^\/docker:" "" current-path))))
 
-(cl-defun replel--container-get-desc (container-name)
+(cl-defun replel--container-get-desc (cont-name)
   (car
-   (let ((current-container-name container-name))
-     (--drop-while (let ((container-name (replel--container-st-name it)))
-		     (if (string= current-container-name container-name) nil t))
+   (let ((current-cont-name cont-name))
+     (--drop-while (let ((cont-name (replel--container-st-name it)))
+		     (if (string= current-cont-name cont-name) nil t))
 		   (replel--container-ls)))))
 
-(cl-defun replel--container-image-name (container-name)
+(cl-defun replel--container-image-name (cont-name)
   (replel--container-st-repo
-   (let ((container-desc (replel--container-get-desc container-name)))
+   (let ((container-desc (replel--container-get-desc cont-name)))
      (or container-desc (make-replel--container-st)))))
 
 
@@ -192,28 +189,34 @@
     (--iterate (nth (random replel--container-naming-list-length) replel--container-naming-list) "" 4))
    "-"))
 
+(cl-defun replel--helper-remove-trailing-space (str)
+  (s-replace-regexp
+   "[\n|\t]+$" "" str))
+
 
 
 
 ;;;; Replel API
 
-(cl-defun replel--get-entrypoint (container-name)
-  "/")
+(cl-defun replel--get-entrypoint (cont-name)
+   (replel--container-exec :workdir "/replel/"
+			   :cont-name cont-name
+			   :cmd "make entrypoint"))
 
-(cl-defun replel-resume (container-name) 
-  (replel--container-resume container-name)
-  (let* ((open (replel--get-entrypoint container-name)))
-    (replel--container-open :container-name container-name :path open)))
+(cl-defun replel-resume (cont-name) 
+  (replel--container-resume cont-name)
+  (let* ((open (replel--get-entrypoint cont-name)))
+    (replel--container-open :cont-name cont-name :path open)))
 
 (cl-defun replel--start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
-  (let ((container-name (replel--gen-name)))
+  (let ((cont-name (replel--gen-name)))
     (cd "/")
     (message
      (replel--container-run :image-name image-name
-			    :container-name container-name))
-    (replel--container-open :container-name container-name
-			    :path (replel--get-entry-point container-name))))
+			    :cont-name cont-name))
+    (replel--container-open :cont-name cont-name
+			    :path (replel--get-entrypoint cont-name))))
 
 (cl-defun replel-resume-select ()
   "Select a replel to run"
@@ -268,7 +271,7 @@
 
 
 
-;;;; Main view
+;;;; Overview view
 
 (defmacro replel--ilm (&rest body)
   `(lambda ()
@@ -327,6 +330,12 @@
 	    (replel--container-rename cont new-name)
 	    (replel-overview-refresh))
 	  (message "RENAMED"))
+    (list "R"
+	  (replel--ilm
+
+	    (let ((default-directory (replel--container-get-tramp-path :cont-name (replel--container-st-name cont)
+								       :path "/replel/")))
+	      (replel-repls-run))))
     (list "d"
 	  (replel--ilm
 	   (if (y-or-n-p (format "Deleted %s" (replel--container-st-name cont)))

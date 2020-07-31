@@ -1,2 +1,2 @@
-(progn (defconst replel--build-info-pined-image-tag "7dc4ae181521a7cb2861788675765da53de086e0"))
+(progn (defconst replel--build-info-pined-image-tag "5020fe036c04bece9e7b3bfb567bfdf031e94768"))
 (provide 'replel-build-info)
