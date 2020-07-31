@@ -1,7 +1,7 @@
 Run repl.it like repls in your emacs
 
 * Under construction
-+ [ ] Create docs
++ [ ] Create docs and document the code itself
 + [ ] Create tutorial
 + [ ] Create tests
 + [ ] Setup CI pipeline
