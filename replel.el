@@ -88,6 +88,7 @@
 
 ;;;; Retrieving info
 
+
 (cl-defun replel--container-image-ls ()
   "Returns a string list of image names"
   (let ((seperator "____"))
@@ -133,21 +134,6 @@
 	  "{{.ID}}" "{{.Labels}}" "{{.Mounts}}" "{{.Networks}}")
 	seperator))))))
 
-(cl-defun replel--current-cont-name ()
-  (let ((current-path default-directory))
-    (s-replace-regexp ":.*" "" (s-replace-regexp "^\/docker:" "" current-path))))
-
-(cl-defun replel--container-get-desc (cont-name)
-  (car
-   (let ((current-cont-name cont-name))
-     (--drop-while (let ((cont-name (replel--container-st-name it)))
-		     (if (string= current-cont-name cont-name) nil t))
-		   (replel--container-ls)))))
-
-(cl-defun replel--container-image-name (cont-name)
-  (replel--container-st-repo
-   (let ((container-desc (replel--container-get-desc cont-name)))
-     (or container-desc (make-replel--container-st)))))
 
 
 
@@ -181,7 +167,7 @@
     "Weasel" "Whale" "Wildcat" "Wolf" "Wolverine" "Wombat" "Woodcock" "Woodpecker"
     "Worm" "Wren" "Yak" "Zebra" ))
 
-(defconst  replel--container-naming-list-length (length replel--container-naming-list))
+(defconst replel--container-naming-list-length (length replel--container-naming-list))
 
 (cl-defun replel--gen-name ()
   (string-join
@@ -331,9 +317,9 @@
 	  (message "RENAMED"))
     (list "R"
 	  (replel--ilm
-
-	    (let ((default-directory (replel--container-get-tramp-path :cont-name (replel--container-st-name cont)
-								       :path "/replel/")))
+	   (let ((default-directory (replel--container-get-tramp-path
+				     :cont-name (replel--container-st-name cont)
+				     :path "/replel/")))
 	      (replel-repls-run))))
     (list "d"
 	  (replel--ilm
