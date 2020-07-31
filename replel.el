@@ -88,7 +88,6 @@
 
 ;;;; Retrieving info
 
-
 (cl-defun replel--container-image-ls ()
   "Returns a string list of image names"
   (let ((seperator "____"))
@@ -192,7 +191,8 @@
 (cl-defun replel-resume (cont-name) 
   (replel--container-resume cont-name)
   (let* ((open (replel--get-entrypoint cont-name)))
-    (replel--container-open :cont-name cont-name :path open)))
+    (replel--container-open :cont-name cont-name :path open))
+  (replel-mode))
 
 (cl-defun replel--start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
@@ -202,7 +202,8 @@
      (replel--container-run :image-name image-name
 			    :cont-name cont-name))
     (replel--container-open :cont-name cont-name
-			    :path (replel--get-entrypoint cont-name))))
+			    :path (replel--get-entrypoint cont-name)))
+  (replel-mode))
 
 (cl-defun replel-resume-select ()
   "Select a replel to run"
@@ -259,22 +260,28 @@
 
 ;;;; Overview view
 
+(define-minor-mode replel-mode
+  "A minor mode that is enabled when a repl is entered"
+  nil
+  "replel" '())
+
+
 (defmacro replel--ilm (&rest body)
   `(lambda ()
      (interactive)
      ,@body))
 
 (define-derived-mode
-  replel-mode
+  replel-major-mode
   special-mode
-  "Replel"
+  "Replel overview"
   "Goes to Replel overview")
 
 (cl-defun replel-overview ()
   (interactive)
   (let ((replel-buffer (generate-new-buffer "*replel*")))
     (switch-to-buffer replel-buffer)
-    (replel-mode)
+    (replel-major-mode)
     (replel-overview-refresh)))
 
 (cl-defun replel-overview-refresh ()
@@ -304,33 +311,27 @@
   (replel--ui-button
    :text (replel--overview-gen-container-text cont width-list)
    :bindings
-   (list
-    (list "u"
-	  (replel--ilm
-	   (replel-overview-refresh)
-	   (message "UPDATED")))
-    (list "r"
-	  (lambda (new-name)
-	    (interactive "sNew name: ")
-	    (replel--container-rename cont new-name)
-	    (replel-overview-refresh))
-	  (message "RENAMED"))
-    (list "R"
-	  (replel--ilm
-	   (let ((default-directory (replel--container-get-tramp-path
-				     :cont-name (replel--container-st-name cont)
-				     :path "/replel/")))
+   `(("u" ,(replel--ilm
+	    (replel-overview-refresh)
+	    (message "UPDATED")))
+     ("r" ,(lambda (new-name)
+	     (interactive "sNew name: ")
+	     (replel--container-rename cont new-name)
+	     (replel-overview-refresh))
+      (message "RENAMED"))
+     ("R" ,(replel--ilm
+	    (let ((default-directory (replel--container-get-tramp-path
+				      :cont-name (replel--container-st-name cont)
+				      :path "/replel/")))
 	      (replel-repls-run))))
-    (list "d"
-	  (replel--ilm
+     ("d" ,(replel--ilm
 	   (if (y-or-n-p (format "Deleted %s" (replel--container-st-name cont)))
 	       (replel--container-delete cont))
 	   (replel-overview-refresh)
 	   (message "DELETED")))
-    (list "<return>"
-	  (replel--ilm
-	   (replel-resume
-	    (replel--container-st-name cont)))))))
+     ("<return>" ,(replel--ilm
+		 (replel-resume
+		  (replel--container-st-name cont)))))))
 
 (provide 'replel)
 
