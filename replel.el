@@ -229,8 +229,8 @@
 
 (cl-defun replel--start (image-name)
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
-  (let ((cont-name (replel--gen-name)))
-    (cd "/")
+  (let ((cont-name (replel--gen-name))
+	(default-directory "/"))
     (message
      (replel--container-run :image-name image-name
 			    :cont-name cont-name))
@@ -301,6 +301,13 @@
   "Replel overview"
   "Goes to Replel overview")
 
+(defconst replel--overview-table-header
+  (replel--ui-row-get-text
+      :cols (list "STATUS"
+		  "REPO"
+		  "NAME")
+      :width-list width-list))
+
 (cl-defun replel-overview ()
   (interactive)
   (let ((replel-buffer (generate-new-buffer "*replel*")))
@@ -311,15 +318,10 @@
 (cl-defun replel-overview-refresh ()
   (interactive)
   (setq inhibit-read-only t)
-  (let* ((current-pos (point))
-	 (width-list (list 23 25 30)))
+  (let ((current-pos (point))
+	(width-list '(23 25 30)))
     (erase-buffer)
-    (insert
-     (replel--ui-row-get-text
-      :cols (list "STATUS"
-		  "REPO"
-		  "NAME")
-      :width-list width-list))
+    (insert replel--overview-table-header)
     (--map (replel--overview-draw-container it width-list)
 	   (replel--container-ls))
     (goto-char current-pos))
