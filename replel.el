@@ -199,7 +199,8 @@
 (define-minor-mode replel-mode
   "A minor mode that is enabled when a repl is entered"
   nil
-  "replel" )
+  "replel"
+  '())
 
 (cl-defun replel--repls-get-repo-from-obj (repl-obj)
   (format "%s/%s:%s"
@@ -215,10 +216,14 @@
 (cl-defun replel--repls-get-name ()
   (--map (replel--repls-st-name it) replel--repls-defined))
 
-(defun replel-repls-run ()
+
+(defun replel--repls-run ()
+  (compile "make time"))
+
+(defun replel-run ()
   (interactive)
   (save-buffer)
-  (compile "make run"))
+  (replel--repls-run))
 
 (cl-defun replel--get-entrypoint (cont-name)
    (replel--container-exec :workdir "/replel/"
@@ -353,7 +358,7 @@
 	    (let ((default-directory (replel--container-get-tramp-path
 				      :cont-name (replel--container-st-name cont)
 				      :path "/replel/")))
-	      (replel-repls-run))))
+	      (replel--repls-run))))
      ("d" ,(replel--ilm
 	   (if (y-or-n-p (format "Deleted %s" (replel--container-st-name cont)))
 	       (replel--container-delete cont))
