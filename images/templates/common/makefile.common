@@ -1,6 +1,8 @@
 .PHONY: entrypoint
 entrypoint:
 	@echo ${REPL_ENTRYPOINT}
+time:
+	@time make build
 .PHONY: %
 %:
 	@echo "Command is not supported in this REPL"
