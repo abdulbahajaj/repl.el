@@ -14,4 +14,4 @@ COPY $template /replel/
 
 WORKDIR /replel/
 
-RUN git init
+RUN git init && git add . && git commit -m "Initial commit"

@@ -3,7 +3,7 @@ entrypoint:
 	@echo ${REPL_ENTRYPOINT}
 .PHONY: time
 time:
-	@time make run
+	@time make -s run
 .PHONY: %
 %:
 	@echo "Command is not supported in this REPL"
