@@ -1,6 +1,8 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
-RUN apt-get update -y && apt-get install -y build-essential git time
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update -y && apt-get install -y build-essential git
 
 RUN git config --global user.email "replel"
 RUN git config --global user.name "replel"

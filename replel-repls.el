@@ -50,7 +50,7 @@
    (make-replel--repls-st :name "python 2"
 			  :repo "py2"
 			  :open-at "/replel/main.py"
-			  :apt-get '("python-pip"))
+			  :apt-get '("python2"))
    (make-replel--repls-st :name "bash"
 			  :repo "bash"
 			  :open-at "/replel/main.sh"
