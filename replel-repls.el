@@ -45,13 +45,11 @@
 			  :apt-get '("nodejs"))
    (make-replel--repls-st :name "python 3"
 			  :repo "py3"
-			  :template "templates/py"
 			  :open-at "/replel/main.py"
 			  :apt-get '("python3-pip"))
    (make-replel--repls-st :name "python 2"
 			  :repo "py2"
 			  :open-at "/replel/main.py"
-			  :template "templates/py"
 			  :apt-get '("python-pip"))
    (make-replel--repls-st :name "bash"
 			  :repo "bash"
