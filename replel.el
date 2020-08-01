@@ -17,6 +17,8 @@
 
 (require 'cl-lib)
 (require 'dash)
+(require 's)
+(require 'docker-tramp)
 (require 'replel-build-info)
 (require 'replel-repls)
 
