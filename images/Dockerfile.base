@@ -2,4 +2,7 @@ FROM ubuntu:18.04
 
 RUN apt-get update -y && apt-get install -y build-essential git time
 
+RUN git config --global user.email "replel"
+RUN git config --global user.name "replel"
+
 COPY templates/common/ /common/
