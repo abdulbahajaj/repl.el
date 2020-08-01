@@ -1,6 +1,7 @@
 .PHONY: entrypoint
 entrypoint:
 	@echo ${REPL_ENTRYPOINT}
+.PHONY: time
 time:
 	@time make run
 .PHONY: %

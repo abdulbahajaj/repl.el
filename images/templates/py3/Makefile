@@ -2,4 +2,4 @@ include /common/makefile.common
 
 .PHONY: run
 run:
-	@python main.py
+	@python3 main.py
