@@ -16,6 +16,7 @@
 ;;; Code
 
 (require 'cl-lib)
+(require 'dash)
 (require 'replel-build-info)
 (require 'replel-repls)
 
