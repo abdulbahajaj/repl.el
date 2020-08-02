@@ -198,9 +198,7 @@
 
 (define-minor-mode replel-mode
   "A minor mode that is enabled when a repl is entered"
-  nil
-  "replel"
-  '())
+  nil "replel" '())
 
 (cl-defun replel--repls-get-repo-from-obj (repl-obj)
   (format "%s/%s:%s"

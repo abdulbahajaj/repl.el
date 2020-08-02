@@ -1,5 +1,39 @@
 Run repl.it like repls in your emacs
 
+* Installation
+*** straight + use-package
+#+begin_src elisp
+(use-package  replel
+  :straight
+  (replel
+   :type git
+   :host github
+   :repo "abdulbahajaj/repl.el"))
+#+end_src
+*** Emacs doom
+#+begin_src elisp
+(package! replel :recipe (:host github :repo "abdulbahajaj/repl.el"))
+#+end_src
+
+* Available functions
+*** replel-start-repl
+Allows you to start a new repl
+
+Available languages: bash, python3, python2, go,  c, c++, clojure, java
+
+[[./media/replel-start-repl.png]]
+
+*** replel-overview
+Allows you to view all running repls
+
+[[./media/replel-overview.png.png]]
+
+*** Repel-run
+Runs the repl
+
+
+
+
 * Under construction
 + [ ] Create docs and document the code itself
 + [ ] Create tutorial
