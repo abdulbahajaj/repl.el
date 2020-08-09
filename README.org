@@ -26,7 +26,7 @@ Available languages: bash, python3, python2, go,  c, c++, clojure, java
 *** replel-overview
 Allows you to view all running repls
 
-[[./media/replel-overview.png.png]]
+[[./media/replel-overview.png]]
 
 *** Repel-run
 Runs the repl
