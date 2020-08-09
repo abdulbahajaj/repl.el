@@ -161,7 +161,6 @@
 ;;;; Name generation
 
 (defconst replel--container-naming-list
-  "This is a list of names. It is used to generate names for containers"
   '("Aardvark" "Albatross" "Alligator" "Alpaca" "Ant" "Anteater" "Antelope" "Ape"
     "Donkey" "Baboon" "Badger" "Barracuda" "Bat" "Bear" "Beaver" "Bee" "Bison" "Boar"
     "Butterfly" "Camel" "Capybara" "Caribou" "Cassowary" "Cat" "Caterpillar" "Cattle"
@@ -186,7 +185,8 @@
     "Starling" "Stingray" "Stinkbug" "Stork" "Swallow" "Swan" "Tapir" "Tarsier" "Termite"
     "Tiger" "Toad" "Trout" "Turkey" "Turtle" "Viper" "Vulture" "Wallaby" "Walrus" "Wasp"
     "Weasel" "Whale" "Wildcat" "Wolf" "Wolverine" "Wombat" "Woodcock" "Woodpecker"
-    "Worm" "Wren" "Yak" "Zebra" ))
+    "Worm" "Wren" "Yak" "Zebra" )
+    "This is a list of names. It is used to generate names for containers")
 
 (defconst replel--container-naming-list-length
   (length replel--container-naming-list))
@@ -327,16 +327,17 @@ width-list is a list of integers representing the width of each column"
   "A major mode that is used in replel-overview")
 
 (defconst replel--overview-width-proportion
-  "Hard coded with of overview columns"
-  '(23 25 30))
+  '(23 25 30)
+    "Hard coded with of overview columns")
 
 (defconst replel--overview-table-header
-  "Returns a string representing overview's header row"
   (replel--ui-row-get-text
       :cols (list "STATUS"
 		  "REPO"
 		  "NAME")
-      :width-list replel--overview-width-proportion))
+      :width-list replel--overview-width-proportion)
+    "Returns a string representing overview's header row")
+
 
 (cl-defun replel-overview ()
   "Go to replel overview"
