@@ -23,6 +23,8 @@
 (defconst replel--repo-namespace "replel")
 
 (defconst replel--repls-defined
+  "This list defines all builtin repls. It is used by the build command to build
+repl images and is used by the `replel-start' command to figure out what repls are available "
   (list
    (make-replel--repls-st :name "c"
 			  :repo "clang"

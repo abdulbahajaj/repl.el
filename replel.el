@@ -33,6 +33,7 @@
 ;;;; Helpers
 
 (cl-defun replel--cmd-run (cmd)
+  "Run a command in using sh"
   (let ((default-dir default-directory))
     (cd "/")
     (message cmd)
@@ -46,6 +47,17 @@
   "Or one or more commands"
   (s-join " || " cmds))
 
+(cl-defun replel--helper-remove-trailing-space (str)
+  "Removed trailing white space from string str"
+  (s-replace-regexp
+   "[\n|\t]+$" "" str))
+
+(defmacro replel--ilm (&rest body)
+  "A macro that makes it easier to define interactive lambdas"
+  `(lambda ()
+     (interactive)
+     ,@body))
+
 
 
 
@@ -57,6 +69,7 @@
 
 
 (cl-defun replel--container-get-tramp-path (&key cont-name path)
+  "Get the tramp path of a container."
   (format "/docker:%s:%s" cont-name (or path "/")))
 
 (cl-defun replel--container-open (&key cont-name path)
@@ -73,17 +86,20 @@
        "docker container unpause %s")))))
 
 (cl-defun replel--container-rename (cont new-name)
+  "Renames a container `cont' to `new-name'"
   (replel--cmd-run
    (format "docker rename %s %s"
 	   (replel--container-st-name cont)
 	   new-name)))
 
 (cl-defun replel--container-delete (cont)
+  "Deletes a container `cont'"
   (let ((cont-name (replel--container-st-name cont)))
     (replel--cmd-run
      (format "docker stop %s && docker rm %s" cont-name cont-name))))
 
 (cl-defun replel--container-exec (&key workdir cont-name cmd)
+  "Execute a command `cmd' inside container `cont-name' in working directory `workdir'"
   (replel--cmd-run (format "docker exec -w %s %s %s" workdir cont-name cmd)))
 
 
@@ -92,7 +108,7 @@
 ;;;; Retrieving info
 
 (cl-defun replel--container-image-ls ()
-  "Returns a string list of image names"
+  "Returns a a list of container images"
   (let ((seperator "____"))
     (--map
      (let ((image-desc (s-split seperator it)))
@@ -104,12 +120,14 @@
 				     seperator)))))))
 
 (cl-defun replel--container-ps (&optional &key filter dformat)
+  "Returns a list of strings representing running containers with the filter `filter' and format `dformat'"
   (replel--cmd-run
    (concat "docker ps "
 	   (when filter (format " --filter %s" filter))
 	   (when dformat (format " --format=\"%s\"" dformat)))))
 
 (cl-defun replel--container-ls ()
+  "Returns a list of running container objects"
   (let ((seperator "_____"))
     (--map
      (let ((container-desc (s-split seperator it)))
@@ -143,6 +161,7 @@
 ;;;; Name generation
 
 (defconst replel--container-naming-list
+  "This is a list of names. It is used to generate names for containers"
   '("Aardvark" "Albatross" "Alligator" "Alpaca" "Ant" "Anteater" "Antelope" "Ape"
     "Donkey" "Baboon" "Badger" "Barracuda" "Bat" "Bear" "Beaver" "Bee" "Bison" "Boar"
     "Butterfly" "Camel" "Capybara" "Caribou" "Cassowary" "Cat" "Caterpillar" "Cattle"
@@ -169,9 +188,11 @@
     "Weasel" "Whale" "Wildcat" "Wolf" "Wolverine" "Wombat" "Woodcock" "Woodpecker"
     "Worm" "Wren" "Yak" "Zebra" ))
 
-(defconst replel--container-naming-list-length (length replel--container-naming-list))
+(defconst replel--container-naming-list-length
+  (length replel--container-naming-list))
 
 (cl-defun replel--gen-name ()
+  "Generated a random name for new repls using a combination of names defined in `replel--container-naming-list'"
   (string-join
    (cdr
     (--iterate (nth (random replel--container-naming-list-length) replel--container-naming-list) "" 4))
@@ -180,55 +201,49 @@
 
 
 
-;;;; Helpers
-
-(cl-defun replel--helper-remove-trailing-space (str)
-  (s-replace-regexp
-   "[\n|\t]+$" "" str))
-
-(defmacro replel--ilm (&rest body)
-  `(lambda ()
-     (interactive)
-     ,@body))
-
-
-
-
 ;;;; Replel API
 
 (define-minor-mode replel-mode
-  "A minor mode that is enabled when a repl is entered"
+  "A minor mode that is enabled when a repl is entered. You can use it to add hooks that runs at the start of repls or to modify
+The keymap inside a repl. For example you can use this mode's keymap to bind `replel-run' to a specific key."
   nil "replel" '())
 
 (cl-defun replel--repls-get-repo-from-obj (repl-obj)
+  "Returns the name of the dockerhub repo that contains the repl image given `repl-obj' which is a struct representing the repl"
   (format "%s/%s:%s"
 	  replel--repo-namespace
 	  (replel--repls-st-repo repl-obj)
 	  replel--build-info-pined-image-tag))
 
 (cl-defun replel--repls-get-repo (name)
+  "Returns the name of the dockerhub repo that contains the repl image given the name of the repl"
   (replel--repls-get-repo-from-obj
    (car (--drop-while (not (string= name (replel--repls-st-name it)))
 		      replel--repls-defined))))
 
 (cl-defun replel--repls-get-name ()
+  "Returns a list of strings of all defined repls"
   (--map (replel--repls-st-name it) replel--repls-defined))
 
 
 (defun replel--repls-run ()
+  "Run the repl that is open in current buffer"
   (compile "make time"))
 
 (defun replel-run ()
+  "Saves the current buffer then runs the repl open in it"
   (interactive)
   (save-buffer)
   (replel--repls-run))
 
 (cl-defun replel--get-entrypoint (cont-name)
+  "Gets the entry point of the repl that is open in the current container."
    (replel--container-exec :workdir "/replel/"
 			   :cont-name cont-name
 			   :cmd "make entrypoint"))
 
 (cl-defun replel-resume (cont-name) 
+  "Open a previously started repl in current buffer"
   (replel--container-resume cont-name)
   (let* ((open (replel--get-entrypoint cont-name)))
     (replel--container-open :cont-name cont-name :path open))
@@ -246,7 +261,7 @@
   (replel-mode 1))
 
 (cl-defun replel-resume-select ()
-  "Select a replel to run"
+  "Select a replel to resume"
   (interactive)
   (replel-resume
    (completing-read "Select container "
@@ -254,7 +269,7 @@
 		    (replel--container-ls)))))
 
 (cl-defun replel-start-image ()
-  "Select a replel to run"
+  "Select a image to run"
   (interactive)
   (replel--start
    (completing-read "Select image "
@@ -262,6 +277,7 @@
 		    (replel--container-image-ls)))))
 
 (cl-defun replel-start-repl ()
+  "Start a new repl"
   (interactive)
   (replel--start
    (replel--repls-get-repo
@@ -274,6 +290,7 @@
 ;;;; UI components
 
 (cl-defun replel--ui-button (&key text bindings)
+  "Insert the given text with the given key bindings"
   (let* ((start-pos (point))
 	 (end-pos (+ start-pos (length text))))
     (insert text)
@@ -282,12 +299,15 @@
       (put-text-property start-pos end-pos 'keymap key-map))))
 
 (cl-defun replel--ui-normalize (str width)
+  "Trims string if it is longer than width. Adds trailing spaces if it is smaller than width"
   (let ((len (length str)))
     (if (> len width)
 	(format "%s..." (substring str 0 (- width 3)))
       (concat str (s-repeat (- width len) " ")))))
 
 (cl-defun replel--ui-row-get-text (&key cols width-list)
+  "Returns a string representing a row in a table. `cols' is a list of strings representing columns in the row.
+width-list is a list of integers representing the width of each column"
   (concat
    (string-join
     (--map-indexed
@@ -301,14 +321,17 @@
 ;;;; Overview view
 
 (define-derived-mode
-  replel-major-mode
+  replel-overview-mode
   special-mode
   "Replel overview"
-  "Goes to Replel overview")
+  "A major mode that is used in replel-overview")
 
-(defconst replel--overview-width-proportion '(23 25 30))
+(defconst replel--overview-width-proportion
+  "Hard coded with of overview columns"
+  '(23 25 30))
 
 (defconst replel--overview-table-header
+  "Returns a string representing overview's header row"
   (replel--ui-row-get-text
       :cols (list "STATUS"
 		  "REPO"
@@ -316,13 +339,15 @@
       :width-list replel--overview-width-proportion))
 
 (cl-defun replel-overview ()
+  "Go to replel overview"
   (interactive)
   (let ((replel-buffer (generate-new-buffer "*replel*")))
     (switch-to-buffer replel-buffer)
-    (replel-major-mode)
+    (replel-overview-mode)
     (replel-overview-refresh)))
 
 (cl-defun replel-overview-refresh ()
+  "Refresh the overview. e.g. if new repls are open show them."
   (interactive)
   (setq inhibit-read-only t)
   (let ((current-pos (point)))
@@ -334,12 +359,14 @@
   (setq inhibit-read-only nil))
 
 (cl-defun replel--overview-gen-container-text (cont width-list)
+  "Generates text representing a container in the overview"
   (replel--ui-row-get-text :cols (list (replel--container-st-status cont)
 				       (replel--container-st-repo cont)
 				       (replel--container-st-name cont))
 			   :width-list width-list))
 
 (cl-defun replel--overview-draw-container (cont width-list)
+  "Insert text to the current buffer representing a container in the overview."
   (replel--ui-button
    :text (replel--overview-gen-container-text cont width-list)
    :bindings

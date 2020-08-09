@@ -38,3 +38,6 @@ Allows you to view all running repls
 
 *** Repel-run
 Runs the repl
+
+* Note
+This is my first emacs package so would appreciate tips/advice on how to improve it.
