@@ -39,6 +39,7 @@
 			  :apt-get '("golang"))
    (make-replel--repls-st :name "java"
 			  :repo "java"
+			  :open-at "/replel/Main.java"
 			  :apt-get '("openjdk-11-jre-headless"))
    (make-replel--repls-st :name "javascript"
 			  :repo "js"

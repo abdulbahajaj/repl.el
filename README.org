@@ -1,4 +1,12 @@
-Run repl.it like repls in your emacs
+* About
+Run repl.it like repls locally in your emacs.
+
+Replel uses docker to provide easy to create throwaway environments designed to be used like repls.
+
+Replel is still under construction
+
+* Demo
+Coming soon
 
 * Installation
 *** straight + use-package
@@ -30,12 +38,3 @@ Allows you to view all running repls
 
 *** Repel-run
 Runs the repl
-
-
-
-
-* Under construction
-+ [ ] Create docs and document the code itself
-+ [ ] Create tutorial
-+ [ ] Create tests
-+ [ ] Setup CI pipeline
