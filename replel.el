@@ -27,21 +27,46 @@
 
 (cl-defstruct replel--image-st repo)
 
-
+(cl-defstruct replel--run-output-st text exit-code)
 
 
 ;;;; Helpers
+(defun replel--log-string (type message)
+  (format "replel %s> %s" type message))
+
+(defun replel--log-fatal (log-message)
+  (let ((log-message (replel--log-string "FATAL" log-message)))
+    (error log-message)))
+
+(defun replel--log-step (log-message)
+  (let ((inhibit-message t))
+    (message (replel--log-string "step" log-message))))
+
+(defun replel--log-warn (message)
+  (message (replel--log-string "WARNING" message)))
+
+(cl-defun replel--cmd-handle-err (&key run-output message exit? )
+  (let* ((exit-code (replel--run-output-st-exit-code run-output))
+	 (text-output (replel--run-output-st-text run-output))
+	 (display-message (format "Command exited with a non-zero exit code: %s; message: %s; desc: %s" exit-code text-output message)))
+    (cond ((= 0 exit-code) run-output)
+	  (exit? (replel--log-fatal display-message))
+	  (t (progn (replel--log-warn display-message) text-output)))))
+
+(cl-defun replel--execute-in-sh (cmd)
+  (with-temp-buffer
+    (list
+     ;; TODO Maybe support windows? probably not.
+     (call-process "/bin/sh" nil (current-buffer) nil "-c" cmd)
+     (buffer-string))))
 
 (cl-defun replel--cmd-run (cmd)
-  "Run a command in using sh"
-  (let ((default-dir default-directory))
-    (cd "/")
-    (message cmd)
-    (let ((res (shell-command-to-string
-		;; TODO Maybe support windows? probably not.
-		(format "/bin/sh -c \"%s\"" cmd))))
-      (cd default-dir)
-      (replel--helper-remove-trailing-space res))))
+  (let* ((default-directory "/")
+	 (results (replel--execute-in-sh cmd))
+	 (exit-code (nth 0 results))
+	 (text (replel--helper-remove-trailing-space (nth 1 results))))
+    (replel--log-step (format "Executed (%s) exit code is (%s) and command output is (%s)" cmd exit-code text))
+    (make-replel--run-output-st :exit-code exit-code :text text)))
 
 (cl-defun replel--cmd-or (cmds)
   "Or one or more commands"
@@ -65,7 +90,8 @@
 
 (cl-defun replel--container-run (&key image-name cont-name)
   "Run a docker container with image `image-name` and container `cont-name`"
-  (replel--cmd-run (format "docker run -t -d --name %s %s" cont-name image-name)))
+  (replel--cmd-run
+   (format "docker run -t -d --name %s %s" cont-name image-name)))
 
 
 (cl-defun replel--container-get-tramp-path (&key cont-name path)
@@ -109,15 +135,19 @@
 
 (cl-defun replel--container-image-ls ()
   "Returns a a list of container images"
-  (let ((seperator "____"))
+  (let ((seperator "___"))
     (--map
      (let ((image-desc (s-split seperator it)))
        (make-replel--image-st :repo (car image-desc)))
-      (s-split "\n"
+     (s-split "\n"
+	      (replel--cmd-handle-err
+	       exit? t
+	       :message "Unable to retrieve images"
+	       :run-output
 	       (replel--cmd-run
 		(format "docker image ls --format='%s'"
 			(string-join '("{{.Repository}}:{{.Tag}}")
-				     seperator)))))))
+				     seperator))))))))
 
 (cl-defun replel--container-ps (&optional &key filter dformat)
   "Returns a list of strings representing running containers with the filter `filter' and format `dformat'"
@@ -128,7 +158,7 @@
 
 (cl-defun replel--container-ls ()
   "Returns a list of running container objects"
-  (let ((seperator "_____"))
+  (let ((seperator "___"))
     (--map
      (let ((container-desc (s-split seperator it)))
        (make-replel--container-st
@@ -146,13 +176,18 @@
 	:networks (nth 11 container-desc)))
      (s-split
       "\n"
-      (replel--container-ps
-       :dformat
-       (string-join
-	'("{{.Names}}" "{{.Image}}" "{{.CreatedAt}}" "{{.Command}}"
-	  "{{.RunningFor}}" "{{.Status}}" "{{.Size}}" "{{.Ports}}"
-	  "{{.ID}}" "{{.Labels}}" "{{.Mounts}}" "{{.Networks}}")
-	seperator))))))
+      (replel--run-output-st-text
+       (replel--cmd-handle-err
+	:exit? t
+	:message "Unable to list containers"
+	:run-output
+	(replel--container-ps
+	 :dformat
+	 (string-join
+	  '("{{.Names}}" "{{.Image}}" "{{.CreatedAt}}" "{{.Command}}"
+	    "{{.RunningFor}}" "{{.Status}}" "{{.Size}}" "{{.Ports}}"
+	    "{{.ID}}" "{{.Labels}}" "{{.Mounts}}" "{{.Networks}}")
+	  seperator)) ) )))))
 
 
 
@@ -186,7 +221,7 @@
     "Tiger" "Toad" "Trout" "Turkey" "Turtle" "Viper" "Vulture" "Wallaby" "Walrus" "Wasp"
     "Weasel" "Whale" "Wildcat" "Wolf" "Wolverine" "Wombat" "Woodcock" "Woodpecker"
     "Worm" "Wren" "Yak" "Zebra" )
-    "This is a list of names. It is used to generate names for containers")
+  "This is a list of names. It is used to generate names for containers")
 
 (defconst replel--container-naming-list-length
   (length replel--container-naming-list))
@@ -238,13 +273,19 @@ The keymap inside a repl. For example you can use this mode's keymap to bind `re
 
 (cl-defun replel--get-entrypoint (cont-name)
   "Gets the entry point of the repl that is open in the current container."
-   (replel--container-exec :workdir "/replel/"
-			   :cont-name cont-name
-			   :cmd "make entrypoint"))
+  (let ((exec-results (replel--container-exec
+		       :workdir "/replel/"
+		       :cont-name cont-name
+		       :cmd "make entrypoint")))
+    (if (not (= 0 (replel--run-output-st-exit-code exec-results))) "/"
+      (replel--run-output-st-text exec-results))))
 
 (cl-defun replel-resume (cont-name) 
   "Open a previously started repl in current buffer"
-  (replel--container-resume cont-name)
+  (replel--cmd-handle-err
+   :exit? t
+   :message "Container failed to resume"
+   :run-output (replel--container-resume cont-name))
   (let* ((open (replel--get-entrypoint cont-name)))
     (replel--container-open :cont-name cont-name :path open))
   (replel-mode 1))
@@ -253,9 +294,12 @@ The keymap inside a repl. For example you can use this mode's keymap to bind `re
   "Given a string name, find the associated replel, run it, tramp to it, and start replel-mode"
   (let ((cont-name (replel--gen-name))
 	(default-directory "/"))
-    (message
-     (replel--container-run :image-name image-name
-			    :cont-name cont-name))
+    (replel--cmd-handle-err 
+     :exit? t
+     :message "Container failed to run"
+     :run-output (replel--container-run :image-name image-name
+					:cont-name cont-name))
+    (message "PASSED ><")
     (replel--container-open :cont-name cont-name
 			    :path (replel--get-entrypoint cont-name)))
   (replel-mode 1))
@@ -265,16 +309,16 @@ The keymap inside a repl. For example you can use this mode's keymap to bind `re
   (interactive)
   (replel-resume
    (completing-read "Select container "
-	     (--map (replel--container-st-name it)
-		    (replel--container-ls)))))
+		    (--map (replel--container-st-name it)
+			   (replel--container-ls)))))
 
 (cl-defun replel-start-image ()
   "Select a image to run"
   (interactive)
   (replel--start
    (completing-read "Select image "
-	     (--map (replel--image-st-repo it)
-		    (replel--container-image-ls)))))
+		    (--map (replel--image-st-repo it)
+			   (replel--container-image-ls)))))
 
 (cl-defun replel-start-repl ()
   "Start a new repl"
@@ -282,7 +326,7 @@ The keymap inside a repl. For example you can use this mode's keymap to bind `re
   (replel--start
    (replel--repls-get-repo
     (completing-read "select repl "
-	      (replel--repls-get-name)))))
+		     (replel--repls-get-name)))))
 
 
 
@@ -328,15 +372,15 @@ width-list is a list of integers representing the width of each column"
 
 (defconst replel--overview-width-proportion
   '(23 25 30)
-    "Hard coded with of overview columns")
+  "Hard coded with of overview columns")
 
 (defconst replel--overview-table-header
   (replel--ui-row-get-text
-      :cols (list "STATUS"
-		  "REPO"
-		  "NAME")
-      :width-list replel--overview-width-proportion)
-    "Returns a string representing overview's header row")
+   :cols (list "STATUS"
+	       "REPO"
+	       "NAME")
+   :width-list replel--overview-width-proportion)
+  "Returns a string representing overview's header row")
 
 
 (cl-defun replel-overview ()
@@ -376,22 +420,29 @@ width-list is a list of integers representing the width of each column"
 	    (message "UPDATED")))
      ("r" ,(lambda (new-name)
 	     (interactive "sNew name: ")
-	     (replel--container-rename cont new-name)
+	     (replel--cmd-handle-err
+	      :exit? t
+	      :message "Failed to rename container"
+	      :run-output (replel--container-rename cont new-name))
 	     (replel-overview-refresh))
       (message "RENAMED"))
      ("R" ,(replel--ilm
-	    (let ((default-directory (replel--container-get-tramp-path
-				      :cont-name (replel--container-st-name cont)
-				      :path "/replel/")))
+	    (let* (tramp-path (replel--container-get-tramp-path
+			       :cont-name (replel--container-st-name cont)
+			       :path "/replel/")
+			      (default-directory tramp-path))
 	      (replel--repls-run))))
      ("d" ,(replel--ilm
-	   (if (y-or-n-p (format "Deleted %s" (replel--container-st-name cont)))
-	       (replel--container-delete cont))
-	   (replel-overview-refresh)
-	   (message "DELETED")))
+	    (if (y-or-n-p (format "Deleted %s" (replel--container-st-name cont)))
+		(replel--cmd-handle-err
+		 :exit? t
+		 :message "Failed to rename container"
+		 :run-output (replel--container-delete cont)))
+	    (replel-overview-refresh)
+	    (message "DELETED")))
      ("<return>" ,(replel--ilm
-		 (replel-resume
-		  (replel--container-st-name cont)))))))
+		   (replel-resume
+		    (replel--container-st-name cont)))))))
 
 (provide 'replel)
 
