@@ -124,7 +124,10 @@
 
 (cl-defun replel--container-delete (cont)
   "Deletes a container `cont'"
-  (let ((cont-name (replel--container-st-name cont)))
+  (let* ((cont-name (replel--container-st-name cont))
+	 (root-tramp-path (replel--container-get-tramp-path :cont-name cont-name :path "/")))
+    (print "I am running")
+    (--map (if (s-contains? root-tramp-path (or (buffer-file-name it) "")) (kill-buffer it)) (buffer-list))
     (replel--cmd-run
      (format "docker stop %s && docker rm %s" cont-name cont-name))))
 
