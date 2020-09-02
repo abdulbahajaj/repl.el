@@ -6,7 +6,8 @@ Replel uses docker to provide easy to create throwaway environments designed to 
 Replel is still under construction
 
 * Demo
-Coming soon
+
+[[./media/replel-demo.gif]]
 
 * Installation
 *** straight + use-package
