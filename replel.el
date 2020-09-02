@@ -45,11 +45,15 @@
 (defun replel--log-warn (message)
   (message (replel--log-string "WARNING" message)))
 
-(cl-defun replel--cmd-handle-err (&key run-output message exit? )
+(cl-defun replel--cmd-handle-err (&optional &key run-output message exit? error-checker)
   (let* ((exit-code (replel--run-output-st-exit-code run-output))
 	 (text-output (replel--run-output-st-text run-output))
-	 (display-message (format "Command exited with a non-zero exit code: %s; message: %s; desc: %s" exit-code text-output message)))
-    (cond ((= 0 exit-code) run-output)
+	 (display-message (format "Command exited with a non-zero exit code: %s; desc: %s; command output: %s"
+				  exit-code text-output message)))
+    (cond ((and error-checker
+		(apply error-checker (list exit-code text-output)))
+	   (replel--log-fatal display-message)) 
+	  ((= 0 exit-code) run-output)
 	  (exit? (replel--log-fatal display-message))
 	  (t (progn (replel--log-warn display-message) text-output)))))
 
@@ -156,6 +160,7 @@
 	   (when filter (format " --filter %s" filter))
 	   (when dformat (format " --format=\"%s\"" dformat)))))
 
+
 (cl-defun replel--container-ls ()
   "Returns a list of running container objects"
   (let ((seperator "___"))
@@ -179,7 +184,8 @@
       (replel--run-output-st-text
        (replel--cmd-handle-err
 	:exit? t
-	:message "Unable to list containers"
+	:message "Unable to list containers or you have no running containers"
+	:error-checker (lambda (exit-code text) (string= "" text))
 	:run-output
 	(replel--container-ps
 	 :dformat
@@ -187,7 +193,7 @@
 	  '("{{.Names}}" "{{.Image}}" "{{.CreatedAt}}" "{{.Command}}"
 	    "{{.RunningFor}}" "{{.Status}}" "{{.Size}}" "{{.Ports}}"
 	    "{{.ID}}" "{{.Labels}}" "{{.Mounts}}" "{{.Networks}}")
-	  seperator)) ) )))))
+	  seperator))))))))
 
 
 
